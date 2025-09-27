@@ -1,5 +1,8 @@
 (function($){
-  // ========= Utils =========
+  // ========= Instancias y Utils =========
+  var map = null; // Instancia del mapa Leaflet para evitar reinicialización
+  var marker = null; // Instancia del marcador del mapa
+
   function refreshHidden(){
     var ids = [];
     $('#rep-gal .rep-gal-item').each(function(){ ids.push( $(this).attr('data-id') ); });
@@ -67,16 +70,22 @@
   }
 
   function initAdminMap(){
-    var $map = $('#rep-admin-map');
-    if(!$map.length || typeof L === 'undefined') return;
+    var $mapContainer = $('#rep-admin-map');
+    if(!$mapContainer.length || typeof L === 'undefined') return;
 
-    var lat = parseFloat($map.data('lat')) || 42.0;
-    var lng = parseFloat($map.data('lng')) || -8.5;
-    var map = L.map('rep-admin-map', { scrollWheelZoom: false }).setView([lat, lng], 14);
+    // **CORRECCIÓN**: Evitar reinicialización del mapa si ya existe
+    if (map) {
+      // Si el mapa ya está creado, solo nos aseguramos de que su tamaño sea correcto
+      setTimeout(function(){ map.invalidateSize(); }, 100);
+      return;
+    }
 
+    var lat = parseFloat($mapContainer.data('lat')) || 42.0;
+    var lng = parseFloat($mapContainer.data('lng')) || -8.5;
+    
+    map = L.map('rep-admin-map', { scrollWheelZoom: false }).setView([lat, lng], 14);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19, attribution: '&copy; OpenStreetMap'}).addTo(map);
-
-    var marker = L.marker([lat, lng], {draggable:true}).addTo(map);
+    marker = L.marker([lat, lng], {draggable:true}).addTo(map);
 
     function updateInputs(latlng){
       $('#rep_mb_lat').val(latlng.lat.toFixed(6));
@@ -87,58 +96,64 @@
     map.on('click', function(e){ marker.setLatLng(e.latlng); updateInputs(e.latlng); });
 
     $('#rep_mb_lat, #rep_mb_lng').on('change', function(){
+      if (!map || !marker) return;
       var la = parseFloat($('#rep_mb_lat').val());
       var lo = parseFloat($('#rep_mb_lng').val());
       if(!isNaN(la) && !isNaN(lo)){
         var ll = L.latLng(la, lo);
-        marker.setLatLng(ll); map.setView(ll);
+        marker.setLatLng(ll); 
+        map.setView(ll);
       }
     });
 
-    // **ACTUALIZADO**: Extractor de coordenadas desde URL de Google Maps (más robusto)
+    // **ACTUALIZADO CON DEPURACIÓN**: Extractor de coordenadas
     $('#rep_mb_gmaps_extract').on('click', function() {
+      console.log('[REP] Botón de extraer pulsado.');
       var url = $('#rep_mb_gmaps_url').val();
-      if (!url) return;
+      if (!url) {
+        console.log('[REP] No hay URL para procesar.');
+        return;
+      }
+      console.log('[REP] Procesando URL:', url);
 
       var lat, lng;
 
-      // Se intentan varios patrones de URL de Google Maps para máxima compatibilidad.
-      // Prioridad 1: !3d<lat>!4d<lng> (preciso, usado en URLs de "place")
       var match1 = url.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
       if (match1 && match1.length >= 3) {
         lat = parseFloat(match1[1]);
         lng = parseFloat(match1[2]);
+        console.log('[REP] Coordenadas encontradas con el patrón 1 (place):', {lat: lat, lng: lng});
       }
 
-      // Prioridad 2: @<lat>,<lng> (común, centro del mapa)
       if (lat === undefined || lng === undefined) {
         var match2 = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
         if (match2 && match2.length >= 3) {
           lat = parseFloat(match2[1]);
           lng = parseFloat(match2[2]);
+          console.log('[REP] Coordenadas encontradas con el patrón 2 (@):', {lat: lat, lng: lng});
         }
       }
       
-      // Prioridad 3: ll=<lat>,<lng> (parámetro de query)
       if (lat === undefined || lng === undefined) {
           var match3 = url.match(/ll=(-?\d+\.\d+),(-?\d+\.\d+)/);
           if (match3 && match3.length >= 3) {
               lat = parseFloat(match3[1]);
               lng = parseFloat(match3[2]);
+              console.log('[REP] Coordenadas encontradas con el patrón 3 (ll=):', {lat: lat, lng: lng});
           }
       }
 
       if (lat !== undefined && lng !== undefined) {
-        // Asignar valores y disparar 'change' para que el mapa se actualice
+        console.log('[REP] Actualizando campos de lat/lng y mapa.');
         $('#rep_mb_lat').val(lat.toFixed(6)).trigger('change');
         $('#rep_mb_lng').val(lng.toFixed(6)).trigger('change');
       } else {
+        console.error('[REP] No se encontraron coordenadas en la URL.');
         alert('No se pudieron encontrar coordenadas en la URL. Asegúrate de que la URL de Google Maps sea correcta y corresponda a un punto concreto.');
       }
     });
 
-
-    setTimeout(function(){ map.invalidateSize(); }, 200);
+    setTimeout(function(){ if (map) map.invalidateSize(); }, 200);
   }
 
   function initAll(){
