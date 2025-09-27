@@ -95,6 +95,27 @@
       }
     });
 
+    // **NUEVO**: Extractor de coordenadas desde URL de Google Maps
+    $('#rep_mb_gmaps_extract').on('click', function() {
+      var url = $('#rep_mb_gmaps_url').val();
+      if (!url) return;
+
+      // Regex para encontrar latitud y longitud en la URL
+      var regex = /@(-?\d+\.\d+),(-?\d+\.\d+)/;
+      var match = url.match(regex);
+
+      if (match && match.length >= 3) {
+        var lat = parseFloat(match[1]);
+        var lng = parseFloat(match[2]);
+
+        $('#rep_mb_lat').val(lat.toFixed(6)).trigger('change');
+        $('#rep_mb_lng').val(lng.toFixed(6)).trigger('change');
+      } else {
+        alert('No se pudieron encontrar las coordenadas en la URL. Asegúrate de que la URL de Google Maps sea correcta.');
+      }
+    });
+
+
     setTimeout(function(){ map.invalidateSize(); }, 200);
   }
 

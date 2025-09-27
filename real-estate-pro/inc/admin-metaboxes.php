@@ -231,7 +231,15 @@ function rep_mb_render_location( $post ){
     <style>
       #rep-admin-map{width:100%;height:230px;border-radius:8px;overflow:hidden;margin:8px 0;border:1px solid #e3e6ea}
       .rep-loc-fields input{width:100%}
+      .rep-loc-url-group{display:flex;gap:8px;margin-bottom:10px}
+      .rep-loc-url-group input{flex:1}
     </style>
+
+    <div class="rep-loc-url-group">
+      <input type="url" id="rep_mb_gmaps_url" placeholder="<?php esc_attr_e('Pegar URL de Google Maps aquí','real-estate-pro'); ?>"/>
+      <button type="button" class="button" id="rep_mb_gmaps_extract"><?php _e('Extraer','real-estate-pro'); ?></button>
+    </div>
+
     <div class="rep-loc-fields">
       <label><?php _e('Latitud','real-estate-pro'); ?></label>
       <input type="number" step="0.000001" name="rep_mb[lat]" id="rep_mb_lat" value="<?php echo esc_attr($lat); ?>"/>
@@ -242,6 +250,7 @@ function rep_mb_render_location( $post ){
     <p><small><?php _e('Haz clic en el mapa para fijar las coordenadas.','real-estate-pro'); ?></small></p>
     <?php
 }
+
 
 /** Guardado: Ubicación */
 add_action('save_post_property', function($post_id){
