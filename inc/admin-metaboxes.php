@@ -41,15 +41,13 @@ function rep_mb_render_details( $post ){
         'origen-bancario'=>'Origen bancario','novedad'=>'Novedad','en-exclusiva'=>'En exclusiva',
         'estudiantes'=>'Estudiantes','precio-negociable'=>'Precio negociable'
     );
+    
+    // Obtenemos todas las características agrupadas desde nuestra nueva función
+    if (!function_exists('rep_get_feature_groups')) {
+        require_once REP_PATH . 'inc/utils.php';
+    }
+    $feature_groups = rep_get_feature_groups();
 
-    $feat_labels = array(
-      'ascensor'=>'Ascensor','terraza'=>'Terraza','piscina'=>'Piscina','exterior'=>'Exterior',
-      'soleado'=>'Soleado','amueblado'=>'Amueblado','garaje'=>'Garaje','trastero'=>'Trastero',
-      'balcon'=>'Balcón','calefaccion'=>'Calefacción','aire_acondicionado'=>'Aire acondicionado',
-      'armarios_empotrados'=>'Armarios empotrados','cocina_equipada'=>'Cocina equipada',
-      'jardin'=>'Jardín','mascotas'=>'Admite mascotas','accesible'=>'Accesible',
-      'vistas'=>'Vistas','alarma'=>'Alarma','portero'=>'Portero','zona_comunitaria'=>'Zona comunitaria'
-    );
     ?>
     <style>
       .rep-grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
@@ -59,6 +57,9 @@ function rep_mb_render_details( $post ){
       .rep-mb-field input,.rep-mb-field select{width:100%}
       .rep-feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
       .rep-feat-grid label{display:flex;gap:8px;align-items:center;border:1px solid #e6eaef;border-radius:8px;padding:8px;background:#fff}
+      .rep-feat-group { border: 1px solid #c8d7e1; padding: 10px 15px; margin-top: 15px; border-radius: 8px; background: #f8fafc; }
+      .rep-feat-group h4 { margin: 0 0 10px; font-size: 14px; }
+      .rep-feat-group[data-property-type] { display: none; } /* Oculto por defecto */
       @media (max-width: 1100px){
         .rep-grid-4{grid-template-columns:repeat(2,1fr)}
         .rep-grid-3{grid-template-columns:repeat(2,1fr)}
@@ -97,10 +98,21 @@ function rep_mb_render_details( $post ){
     </div>
 
     <h3 style="margin-top:16px;"><?php _e('Características','real-estate-pro'); ?></h3>
-    <div class="rep-feat-grid">
-      <?php foreach($feat_labels as $key=>$lbl): $checked = get_post_meta($post->ID,$key,true) ? 'checked' : ''; ?>
-        <label><input type="checkbox" name="rep_mb_feat[<?php echo esc_attr($key); ?>]" value="1" <?php echo $checked; ?>/> <?php echo esc_html($lbl); ?></label>
-      <?php endforeach; ?>
+    
+    <div id="rep-feature-groups-wrapper">
+        <?php foreach ($feature_groups as $group_key => $group_data): ?>
+            <div class="rep-feat-group" data-property-type="<?php echo esc_attr($group_key); ?>">
+                <h4><?php echo esc_html($group_data['label']); ?></h4>
+                <div class="rep-feat-grid">
+                    <?php foreach($group_data['items'] as $key => $label): 
+                        $checked = get_post_meta($post->ID, $key, true) ? 'checked' : ''; ?>
+                        <label>
+                            <input type="checkbox" name="rep_mb_feat[<?php echo esc_attr($key); ?>]" value="1" <?php echo $checked; ?>/> <?php echo esc_html($label); ?>
+                        </label>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        <?php endforeach; ?>
     </div>
 
     <?php if($extsrc || $extid): ?>
@@ -141,9 +153,17 @@ add_action('save_post_property', function($post_id){
     }
 
     // Características (booleans)
-    $feat_keys = array('ascensor','terraza','piscina','exterior','soleado','amueblado','garaje','trastero','balcon','calefaccion','aire_acondicionado','armarios_empotrados','cocina_equipada','jardin','mascotas','accesible','vistas','alarma','portero','zona_comunitaria');
+    if (!function_exists('rep_get_feature_groups')) {
+        require_once REP_PATH . 'inc/utils.php';
+    }
+    $feature_groups = rep_get_feature_groups();
+    $all_feat_keys = array();
+    foreach ($feature_groups as $group) {
+        $all_feat_keys = array_merge($all_feat_keys, array_keys($group['items']));
+    }
+
     $in_feat = isset($_POST['rep_mb_feat']) && is_array($_POST['rep_mb_feat']) ? $_POST['rep_mb_feat'] : array();
-    foreach($feat_keys as $k){
+    foreach($all_feat_keys as $k){
         if ( isset($in_feat[$k]) ) update_post_meta($post_id,$k,1);
         else delete_post_meta($post_id,$k);
     }
@@ -261,3 +281,4 @@ add_action('save_post_property', function($post_id){
     if ( isset($_POST['rep_mb']['lat']) ) update_post_meta($post_id,'lat', floatval($_POST['rep_mb']['lat']) );
     if ( isset($_POST['rep_mb']['lng']) ) update_post_meta($post_id,'lng', floatval($_POST['rep_mb']['lng']) );
 }, 12);
+

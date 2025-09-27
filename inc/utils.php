@@ -2,8 +2,8 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 /** =========================
- *  Ajustes del plugin
- *  ========================= */
+ * Ajustes del plugin
+ * ========================= */
 function rep_get_setting( $key, $default = '' ) {
     $opts = get_option( 'rep_settings', array() );
     return isset( $opts[ $key ] ) ? $opts[ $key ] : $default;
@@ -16,8 +16,8 @@ function rep_update_setting( $key, $value ) {
 }
 
 /** =========================
- *  Formato de precio
- *  ========================= */
+ * Formato de precio
+ * ========================= */
 function rep_price_format( $amount ) {
     $symbol = rep_get_setting('currency_symbol', '€');
     $pos    = rep_get_setting('currency_position', 'after');
@@ -30,9 +30,64 @@ function rep_price_format( $amount ) {
     return $pos==='before' ? $symbol.$formatted : $formatted.$symbol;
 }
 
+/**
+ * Define y devuelve los grupos de características
+ */
+function rep_get_feature_groups() {
+    return array(
+        'comun' => array(
+            'label' => 'Características Comunes',
+            'items' => array(
+                'amueblado'           => 'Amueblado',
+                'trastero'            => 'Trastero',
+                'calefaccion'         => 'Calefacción',
+                'aire_acondicionado'  => 'Aire acondicionado',
+                'cocina_equipada'     => 'Cocina equipada',
+                'armarios_empotrados' => 'Armarios empotrados',
+                'exterior'            => 'Exterior',
+                'soleado'             => 'Soleado',
+                'vistas'              => 'Vistas',
+                'accesible'           => 'Accesible',
+                'alarma'              => 'Alarma',
+                'mascotas'            => 'Admite mascotas',
+            )
+        ),
+        'piso' => array(
+            'label' => 'Características de Piso',
+            'items' => array(
+                'ascensor'         => 'Ascensor',
+                'balcon'           => 'Balcón',
+                'terraza'          => 'Terraza',
+                'portero'          => 'Portero',
+                'zona_comunitaria' => 'Zona comunitaria',
+            )
+        ),
+        'casa' => array(
+            'label' => 'Características de Casa',
+            'items' => array(
+                'piscina' => 'Piscina',
+                'jardin'  => 'Jardín',
+                'garaje'  => 'Garaje',
+                'terraza' => 'Terraza'
+            )
+        ),
+        'terreno' => array(
+            'label' => 'Características de Terreno/Finca',
+            'items' => array(
+                'vallado'      => 'Vallado',
+                'con_agua'     => 'Conexión de agua',
+                'con_luz'      => 'Conexión de luz',
+                'edificable'   => 'Edificable',
+                'pozo'         => 'Pozo',
+                'fosa_septica' => 'Fosa séptica',
+            )
+        )
+    );
+}
+
 /** =========================
- *  Descarga de imágenes
- *  ========================= */
+ * Descarga de imágenes
+ * ========================= */
 function rep_sideload_featured( $post_id, $url, $desc = '' ) {
     if ( ! function_exists('media_handle_sideload') ) require_once ABSPATH.'wp-admin/includes/media.php';
     if ( ! function_exists('download_url') ) require_once ABSPATH.'wp-admin/includes/file.php';
@@ -73,8 +128,8 @@ function rep_sideload_image_get_id( $url, $post_id = 0, $desc = '' ) {
 }
 
 /** =========================
- *  Helpers multibyte-safe (sin mbstring)
- *  ========================= */
+ * Helpers multibyte-safe (sin mbstring)
+ * ========================= */
 if (!function_exists('rep_strlen')) {
     function rep_strlen($s){
         return function_exists('mb_strlen') ? mb_strlen($s) : strlen($s);
@@ -120,8 +175,8 @@ function rep_placeholder_img(){
 }
 
 /** =========================
- *  Etiquetas (marketing badges)
- *  ========================= */
+ * Etiquetas (marketing badges)
+ * ========================= */
 function rep_label_options(){
     // Canon: claves con GUION BAJO (mantiene compatibilidad con lo que ya tenías).
     return array(
@@ -175,8 +230,8 @@ function rep_label_text($slug){
 }
 
 /** =========================
- *  Helpers de listado
- *  ========================= */
+ * Helpers de listado
+ * ========================= */
 
 /**
  * Recorte “legacy” que usaban tus listados. Ahora delega en rep_excerpt_chars()
@@ -204,3 +259,4 @@ function rep_get_card_images($post_id, $max = 5){
     }
     return $urls;
 }
+

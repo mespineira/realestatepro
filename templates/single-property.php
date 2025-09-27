@@ -18,9 +18,16 @@ get_header();
   $lng    = get_post_meta($pid,'lng', true);
 
   // Características (booleans)
-  $feat_keys = array('ascensor','terraza','piscina','exterior','soleado','amueblado','garaje','trastero','balcon','calefaccion','aire_acondicionado','armarios_empotrados','cocina_equipada','jardin','mascotas','accesible','vistas','alarma','portero','zona_comunitaria');
+  if (!function_exists('rep_get_feature_groups')) {
+      require_once REP_PATH . 'inc/utils.php';
+  }
+  $feature_groups = rep_get_feature_groups();
+  $all_feature_labels = array();
+  foreach ($feature_groups as $group) {
+      $all_feature_labels = array_merge($all_feature_labels, $group['items']);
+  }
   $features = array();
-  foreach($feat_keys as $fk){
+  foreach(array_keys($all_feature_labels) as $fk){
     if ( get_post_meta($pid,$fk,true) ) $features[] = $fk;
   }
 
@@ -146,16 +153,8 @@ get_header();
 
             <?php
             // Mostrar booleans como lista
-            $labels = array(
-              'ascensor'=>'Ascensor','terraza'=>'Terraza','piscina'=>'Piscina','exterior'=>'Exterior',
-              'soleado'=>'Soleado','amueblado'=>'Amueblado','garaje'=>'Garaje','trastero'=>'Trastero',
-              'balcon'=>'Balcón','calefaccion'=>'Calefacción','aire_acondicionado'=>'Aire acondicionado',
-              'armarios_empotrados'=>'Armarios empotrados','cocina_equipada'=>'Cocina equipada',
-              'jardin'=>'Jardín','mascotas'=>'Admite mascotas','accesible'=>'Accesible',
-              'vistas'=>'Vistas','alarma'=>'Alarma','portero'=>'Portero','zona_comunitaria'=>'Zona comunitaria'
-            );
-            foreach($feat_keys as $k){
-              if ( in_array($k,$features,true) ) echo '<li>'.esc_html($labels[$k]).'</li>';
+            foreach($features as $k){
+              if ( isset($all_feature_labels[$k]) ) echo '<li>'.esc_html($all_feature_labels[$k]).'</li>';
             } ?>
           </ul>
 
@@ -209,3 +208,4 @@ get_header();
 <?php endwhile; ?>
 </main>
 <?php get_footer(); ?>
+

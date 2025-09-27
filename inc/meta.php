@@ -27,7 +27,7 @@ function rep_register_meta(){
         // NUEVO: Etiqueta de marketing (select)
         'label_tag'       => array('type'=>'string','single'=>true),
 
-        // Características booleanas
+        // Características booleanas (lista expandida)
         'ascensor' => array('type'=>'boolean','single'=>true),
         'terraza'  => array('type'=>'boolean','single'=>true),
         'piscina'  => array('type'=>'boolean','single'=>true),
@@ -48,6 +48,13 @@ function rep_register_meta(){
         'alarma'   => array('type'=>'boolean','single'=>true),
         'portero'  => array('type'=>'boolean','single'=>true),
         'zona_comunitaria'=>array('type'=>'boolean','single'=>true),
+        // Nuevas características para terrenos
+        'vallado'      => array('type'=>'boolean','single'=>true),
+        'con_agua'     => array('type'=>'boolean','single'=>true),
+        'con_luz'      => array('type'=>'boolean','single'=>true),
+        'edificable'   => array('type'=>'boolean','single'=>true),
+        'pozo'         => array('type'=>'boolean','single'=>true),
+        'fosa_septica' => array('type'=>'boolean','single'=>true),
     );
     foreach( $fields as $key=>$schema ){
         register_post_meta('property',$key, array_merge(array(
@@ -78,3 +85,4 @@ add_action('admin_notices', function(){
            .'</p></div>';
     }
 });
+

@@ -18,13 +18,13 @@
 
     $wrap.sortable({
       items: '.rep-gal-item',
-      handle: '.rep-gal-drag',           // asa de arrastre
+      handle: '.rep-gal-drag',
       placeholder: 'rep-gal-placeholder',
       forcePlaceholderSize: true,
-      helper: 'clone',                    // importante para Safari
+      helper: 'clone',
       tolerance: 'pointer',
       opacity: 0.9,
-      delay: 100,                         // evita selecciones accidentales en WebKit
+      delay: 100,
       cancel: '.rep-gal-remove, input, button',
       start: function(e, ui){
         ui.placeholder.height(ui.helper.outerHeight());
@@ -69,13 +69,70 @@
     });
   }
 
+  function manageFeatureVisibility() {
+      var $metabox = $('.editor-post-taxonomies__hierarchical-terms-list[aria-label="Tipo de propiedad"]');
+      
+      if (!$metabox.length) {
+          console.warn('[REP] No se encontró el panel de "Tipo de propiedad".');
+          return;
+      }
+
+      var $selectedItems = $metabox.find('input[type="checkbox"]:checked');
+      var selectedTypeSlugs = [];
+
+      if ($selectedItems.length) {
+          $selectedItems.each(function(){
+              // **CORRECCIÓN**: Buscar la etiqueta usando el atributo 'for' que coincide con el ID del input.
+              var inputId = $(this).attr('id');
+              var labelText = $('label[for="' + inputId + '"]').text().trim().toLowerCase();
+              
+              if (labelText) {
+                var normalized = labelText.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                var slug = normalized.replace(/ /g, '-').replace(/[^a-z0-9-]/g, '');
+                if (slug) {
+                    selectedTypeSlugs.push(slug);
+                }
+              }
+          });
+      }
+
+      $('#rep-feature-groups-wrapper .rep-feat-group[data-property-type]').hide();
+      $('#rep-feature-groups-wrapper .rep-feat-group[data-property-type="comun"]').show();
+
+      if (selectedTypeSlugs.length > 0) {
+          console.log('[REP] Tipos seleccionados (slugs):', selectedTypeSlugs);
+      } else {
+          console.log('[REP] Ningún tipo de propiedad seleccionado.');
+      }
+
+      var typeToGroupMap = {
+        'casa': ['casa'], 'casas': ['casa'], 'chalet': ['casa'], 'chalets': ['casa'],
+        'adosado': ['casa'], 'adosados': ['casa'], 'independiente': ['casa'], 'chalets-independientes': ['casa'],
+        'piso': ['piso'], 'pisos': ['piso'], 'atico': ['piso'], 'aticos': ['piso'],
+        'duplex': ['piso'], 'bajo': ['piso'], 'bajos': ['piso'], 'plantas-bajas':['piso'], 'apartamento': ['piso'],
+        'apartamentos': ['piso'],
+        'terreno': ['terreno'], 'terrenos': ['terreno'], 'finca': ['terreno'],
+        'fincas': ['terreno'], 'solar': ['terreno'], 'solares': ['terreno'],
+        'locales': ['piso'], 'locales-comerciales': ['piso'], 'restaurantes': ['piso'],
+      };
+      
+      selectedTypeSlugs.forEach(function(slug){
+          if (typeToGroupMap[slug]) {
+              typeToGroupMap[slug].forEach(function(groupKey){
+                  console.log('[REP] Mostrando grupo:', groupKey, 'para slug:', slug);
+                  $('[data-property-type="' + groupKey + '"]').show();
+              });
+          } else {
+              console.log('[REP] No se encontró mapeo para el slug:', slug);
+          }
+      });
+  }
+
   function initAdminMap(){
     var $mapContainer = $('#rep-admin-map');
     if(!$mapContainer.length || typeof L === 'undefined') return;
 
-    // **CORRECCIÓN**: Evitar reinicialización del mapa si ya existe
     if (map) {
-      // Si el mapa ya está creado, solo nos aseguramos de que su tamaño sea correcto
       setTimeout(function(){ map.invalidateSize(); }, 100);
       return;
     }
@@ -106,74 +163,64 @@
       }
     });
 
-    // **ACTUALIZADO CON DEPURACIÓN**: Extractor de coordenadas
     $('#rep_mb_gmaps_extract').on('click', function() {
       console.log('[REP] Botón de extraer pulsado.');
       var url = $('#rep_mb_gmaps_url').val();
-      if (!url) {
-        console.log('[REP] No hay URL para procesar.');
-        return;
-      }
+      if (!url) { console.log('[REP] No hay URL para procesar.'); return; }
       console.log('[REP] Procesando URL:', url);
 
       var lat, lng;
-
       var match1 = url.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
-      if (match1 && match1.length >= 3) {
-        lat = parseFloat(match1[1]);
-        lng = parseFloat(match1[2]);
-        console.log('[REP] Coordenadas encontradas con el patrón 1 (place):', {lat: lat, lng: lng});
-      }
+      var match2 = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+      var match3 = url.match(/ll=(-?\d+\.\d+),(-?\d+\.\d+)/);
 
-      if (lat === undefined || lng === undefined) {
-        var match2 = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
-        if (match2 && match2.length >= 3) {
-          lat = parseFloat(match2[1]);
-          lng = parseFloat(match2[2]);
-          console.log('[REP] Coordenadas encontradas con el patrón 2 (@):', {lat: lat, lng: lng});
-        }
-      }
-      
-      if (lat === undefined || lng === undefined) {
-          var match3 = url.match(/ll=(-?\d+\.\d+),(-?\d+\.\d+)/);
-          if (match3 && match3.length >= 3) {
-              lat = parseFloat(match3[1]);
-              lng = parseFloat(match3[2]);
-              console.log('[REP] Coordenadas encontradas con el patrón 3 (ll=):', {lat: lat, lng: lng});
-          }
+      if (match1) {
+        lat = parseFloat(match1[1]); lng = parseFloat(match1[2]);
+      } else if (match2) {
+        lat = parseFloat(match2[1]); lng = parseFloat(match2[2]);
+      } else if (match3) {
+        lat = parseFloat(match3[1]); lng = parseFloat(match3[2]);
       }
 
       if (lat !== undefined && lng !== undefined) {
-        console.log('[REP] Actualizando campos de lat/lng y mapa.');
         $('#rep_mb_lat').val(lat.toFixed(6)).trigger('change');
         $('#rep_mb_lng').val(lng.toFixed(6)).trigger('change');
       } else {
-        console.error('[REP] No se encontraron coordenadas en la URL.');
-        alert('No se pudieron encontrar coordenadas en la URL. Asegúrate de que la URL de Google Maps sea correcta y corresponda a un punto concreto.');
+        alert('No se pudieron encontrar coordenadas en la URL.');
       }
     });
 
     setTimeout(function(){ if (map) map.invalidateSize(); }, 200);
   }
 
-  function initAll(){
+  function initFeatureVisibilityLogic() {
+      var metaboxSelector = '.editor-post-taxonomies__hierarchical-terms-list[aria-label="Tipo de propiedad"]';
+      
+      var observer = new MutationObserver(function(mutations, me) {
+          var $foundMetabox = $(metaboxSelector);
+          if ($foundMetabox.length) {
+              console.log('[REP] Panel de "Tipo de propiedad" encontrado.');
+              
+              manageFeatureVisibility();
+              
+              $foundMetabox.on('change', 'input[type="checkbox"]', function(){
+                  console.log('[REP] Cambio en checkbox de tipo de propiedad detectado.');
+                  manageFeatureVisibility();
+              });
+
+              me.disconnect();
+          }
+      });
+      
+      observer.observe(document.body, { childList: true, subtree: true });
+  }
+
+  $(function(){
     bindGalleryUI();
     initSortable();
     initAdminMap();
-  }
-
-  $(function(){ initAll(); });
-
-  if (window.MutationObserver){
-    var obs = new MutationObserver(function(mutations){
-      var need=false;
-      mutations.forEach(function(m){ if ($(m.addedNodes).find('#rep-gal, #rep-gal-add, #rep-admin-map').length){ need=true; } });
-      if(need) initAll();
-    });
-    obs.observe(document.body, { childList:true, subtree:true });
-  }
-
-  $(document).on('postbox-toggled', function(){ initAll(); });
+    initFeatureVisibilityLogic();
+  });
 
 })(jQuery);
 
