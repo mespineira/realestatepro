@@ -1,0 +1,3 @@
+/* Admin styles for Real Estate Pro */
+#rep-gal .rep-gal-item{cursor:move}
+#rep-gal .rep-gal-item.ui-sortable-helper{opacity:.8}
