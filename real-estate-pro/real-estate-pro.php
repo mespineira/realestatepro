@@ -4,7 +4,7 @@
  * Description: Gestión inmobiliaria con Mobilia Sync, galería, mapa Leaflet (OSM), eficiencia energética, formulario de contacto RGPD y simulador de hipoteca.
  * Version: 1.3.0
  * Requires PHP: 7.3
- * Author: Tu Agencia
+ * Author: Manel Espiñeira
  * Text Domain: real-estate-pro
  */
 
