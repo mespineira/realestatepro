@@ -7,43 +7,80 @@
 
 /* ==== Encabezado de ficha ==== */
 .rep-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:10px}
-.rep-title{margin:0}
+.rep-title{margin:0; font-size: 2.2rem;}
 .rep-sub{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
 .rep-chip{background:#f4f6f8;border:1px solid #e6e8ea;border-radius:999px;padding:.25rem .6rem;font-size:.9rem}
 .rep-ref{font-weight:600;margin-right:.5rem}
-.rep-price-lg{font-size:1.6rem;font-weight:700}
+.rep-price-lg{font-size:2rem;font-weight:700; color: #0e7b6c;}
 
-/* ==== Barra de anclas ==== */
+/* ==== Barra de anclas (Revisado) ==== */
 .rep-anchorbar{
-  display:flex; gap:8px; margin:10px 0 14px;
-  position:sticky; top:64px; z-index:2; background:#fff; padding:6px 0;
+  display:flex; 
+  flex-wrap: wrap;
+  gap:8px; 
+  margin:20px 0 14px;
+  position:sticky; 
+  top:40px; 
+  z-index: 1001; /* Elevado para estar sobre el mapa */
+  background:#fff; 
+  padding:10px;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0,0,0,.07);
+  border: 1px solid #eee;
 }
 .rep-anchorbar a{
-  background:#f5f7fa; border:1px solid #e5e8ee; border-radius:10px;
-  padding:.45rem .8rem; text-decoration:none; color:#111; font-weight:600;
+  background:#f5f7fa; 
+  border:1px solid #e5e8ee; 
+  border-radius:8px;
+  padding:.5rem 1rem; 
+  text-decoration:none; 
+  color:#333; 
+  font-weight:600;
+  transition: all .2s ease-in-out;
 }
-.rep-anchorbar a:hover{ background:#111; color:#fff; border-color:#111; }
+.rep-anchorbar a:hover{ 
+  background: #f0f0f0; 
+  border-color: #ddd;
+  color: #000;
+}
+.rep-anchorbar .rep-cta{
+  background: #0e7b6c;
+  border-color: #0e7b6c;
+  color: #fff;
+}
+.rep-anchorbar .rep-cta:hover{ 
+  background: #0c6b5d;
+  border-color: #0c6b5d;
+  color: #fff; 
+}
 
 /* ==== Secciones ==== */
-.rep-section{ scroll-margin-top:80px; margin-top:14px; }
+.rep-section{ scroll-margin-top:120px; margin-top:14px; }
+.rep-section h2 {
+    font-size: 1.8rem;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #f0f0f0;
+}
 
 /* ==== Listado ==== */
 .rep-title a{text-decoration:none;color:#111}
-.rep-title a:hover{text-decoration:underline}
-.rep-price{font-weight:600}
+.rep-title a:hover{text-decoration:underline; color: #0e7b6c;}
+.rep-price{font-weight:600; color: #0e7b6c;}
 .rep-pagination ul{list-style:none;display:flex;gap:8px;flex-wrap:wrap;padding:0;margin:16px 0}
 .rep-pagination li{margin:0}
 
 /* ==== Ficha: dos columnas ==== */
 .rep-two{display:grid;grid-template-columns:2fr 1fr;gap:24px;margin-top:12px}
-.rep-box{background:#fafbfc;border:1px solid #eceff3;border-radius:10px;padding:14px}
-.rep-features{margin:0;padding-left:1rem}
+.rep-box{background:#fdfdfd;border:1px solid #eceff3;border-radius:10px;padding:20px}
+.rep-features{margin:0;padding-left:1rem; columns: 2;}
 .rep-features li{margin:.25rem 0}
+.rep-features li strong { color: #0e7b6c; }
 
 /* ==== Notas pequeñas ==== */
 .rep-note{display:block;margin-top:6px;color:#666;font-size:.85rem}
 
-/* ==== Eficiencia energética (Reemplazado con cariño) ==== */
+/* ==== Eficiencia energética ==== */
 .rep-energy-cert { 
     margin-top: 20px; 
 }
@@ -53,13 +90,13 @@
 .rep-energy-scale-new {
     border: 2px solid #333;
     font-family: Arial, sans-serif;
-    max-width: 350px; /* Ancho ajustado */
+    max-width: 350px;
     background: #fff;
     padding: 5px;
 }
 .rep-energy-header {
     display: grid;
-    grid-template-columns: 1.5fr 1fr 1fr; /* Tres columnas */
+    grid-template-columns: 1.5fr 1fr 1fr;
     gap: 5px;
     font-size: 10px;
     font-weight: bold;
@@ -76,12 +113,12 @@
 }
 .rep-energy-rows { 
     display: grid;
-    grid-template-columns: 1.5fr 1fr 1fr; /* Tres columnas */
+    grid-template-columns: 1.5fr 1fr 1fr;
     gap: 5px;
     align-items: center;
 }
 .rep-energy-row {
-    display: contents; /* Hacemos que cada fila se comporte como celdas de la rejilla principal */
+    display: contents;
 }
 .rep-energy-letter {
     font-size: 18px;
@@ -92,8 +129,6 @@
     margin: 2px 0;
 }
 .rep-energy-letter span { font-size: 10px; font-weight: normal; margin-left: 5px; }
-
-/* Anchos escalados para las barras */
 .rep-energy-letter[data-letter="A"] { width: 45%; }
 .rep-energy-letter[data-letter="B"] { width: 55%; }
 .rep-energy-letter[data-letter="C"] { width: 65%; }
@@ -101,7 +136,6 @@
 .rep-energy-letter[data-letter="E"] { width: 85%; }
 .rep-energy-letter[data-letter="F"] { width: 95%; }
 .rep-energy-letter[data-letter="G"] { width: 100%; }
-
 .rep-energy-value {
     text-align: center;
     height: 100%;
@@ -119,44 +153,157 @@
     font-size: 14px;
     clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
 }
-.is-active .rep-energy-value span {
-    display: inline-block;
-}
 .rep-energy-tramite { 
-    grid-column: 1 / -1; /* Ocupa todas las columnas */
+    grid-column: 1 / -1;
     text-align: center; 
     padding: 10px; 
     font-weight: bold; 
 }
 
 
-/* ==== Formulario de contacto ==== */
-.rep-single-contact{margin-top:20px;border-top:1px solid #eee;padding-top:16px}
-.rep-contact{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.rep-contact .rep-field{display:flex;flex-direction:column}
+/* ==== Formulario de contacto y Simulador (Revisado) ==== */
+.rep-single-contact, .rep-mortgage {
+    margin-top: 40px;
+    padding: 40px;
+    border-radius: 16px;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+}
+
+.rep-single-contact h2, .rep-mortgage h2 {
+    margin-top: 0;
+    margin-bottom: 30px;
+    font-size: 2rem;
+    text-align: center;
+    color: #000;
+}
+
+.rep-contact {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+.rep-contact .rep-field {
+    display: flex;
+    flex-direction: column;
+}
+.rep-contact label {
+    margin-bottom: 8px;
+    font-size: 0.9em;
+    color: #333;
+    font-weight: 600;
+}
+.rep-contact .rep-field:nth-of-type(n+4) { /* Comentarios y siguientes */
+    grid-column: 1 / -1;
+}
 .rep-contact input[type="text"],
 .rep-contact input[type="email"],
 .rep-contact input[type="tel"],
 .rep-contact input[type="number"],
-.rep-contact textarea{
-  padding:.6rem .7rem;border:1px solid #dfe3e8;border-radius:8px;background:#fff;
+.rep-contact textarea {
+    padding: 12px 15px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    background: #fff;
+    color: #333;
+    font-size: 1rem;
+    transition: border-color .2s, box-shadow .2s;
 }
-.rep-contact textarea{grid-column:1/-1;resize:vertical}
-.rep-actions{grid-column:1/-1;margin-top:8px}
-.rep-contact .button{background:#111;color:#fff;border:none;border-radius:10px;padding:.6rem 1rem;cursor:pointer}
-.rep-contact .button:hover{background:#000}
+.rep-contact input:focus, .rep-contact textarea:focus {
+    outline: none;
+    border-color: #0e7b6c;
+    box-shadow: 0 0 0 3px rgba(14, 123, 108, 0.3);
+}
+.rep-contact .rep-field > label:has(input[type="checkbox"]) {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #555;
+    font-size: 0.9em;
+    font-weight: normal;
+}
+.rep-contact .rep-field a {
+    color: #0e7b6c;
+    text-decoration: none;
+    font-weight: bold;
+}
+.rep-contact .rep-field a:hover { text-decoration: underline; }
+.rep-actions {
+    grid-column: 1 / -1;
+    margin-top: 20px;
+    text-align: center;
+}
+.rep-contact .button {
+    background: #0e7b6c;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 14px 35px;
+    cursor: pointer;
+    font-size: 1.1rem;
+    font-weight: bold;
+    transition: background-color .2s;
+}
+.rep-contact .button:hover {
+    background: #0c6b5d;
+}
 
 /* ==== Mensajes ==== */
 .rep-alert{padding:10px;border-radius:6px;margin-bottom:12px}
 .rep-alert.rep-ok{background:#e8f7ee;border:1px solid #b6e2c5}
 .rep-alert.rep-err{background:#fdecea;border:1px solid #f5c2bf}
 
-/* ==== Simulador de hipoteca ==== */
-.rep-mortgage .rep-m-rows{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-.rep-mortgage .rep-m-row{display:flex;flex-direction:column}
-.rep-mortgage input[type="number"]{padding:.6rem .7rem;border:1px solid #dfe3e8;border-radius:8px;background:#fff}
-.rep-mortgage .rep-m-out{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:10px}
-.rep-mortgage .rep-m-badge{background:#f0f7ff;border:1px solid #d6e6ff;border-radius:10px;padding:10px;font-weight:600;text-align:center}
+/* ==== Simulador de hipoteca (Revisado) ==== */
+.rep-mortgage .rep-m-rows {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
+}
+.rep-mortgage .rep-m-row label {
+    margin-bottom: 8px;
+    font-size: 0.9em;
+    font-weight: bold;
+    color: #333;
+}
+.rep-mortgage input[type="number"] {
+    padding: 12px 15px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    background: #fff;
+    font-size: 1rem;
+    transition: border-color .2s, box-shadow .2s;
+}
+.rep-mortgage input[type="number"]:focus {
+    outline: none;
+    border-color: #0e7b6c;
+    box-shadow: 0 0 0 3px rgba(14, 123, 108, 0.3);
+}
+.rep-mortgage .rep-m-out {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    margin-top: 30px;
+    border-top: 1px solid #ddd;
+    padding-top: 30px;
+    justify-content: center;
+}
+.rep-mortgage .rep-m-badge {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    padding: 15px 20px;
+    font-weight: 600;
+    text-align: center;
+    flex-grow: 1;
+    color: #333;
+}
+.rep-mortgage .rep-m-badge span {
+    display: block;
+    font-size: 1.5rem;
+    color: #0e7b6c;
+    margin-top: 5px;
+}
+
 
 /* ==== Responsive ==== */
 @media (max-width:900px){
@@ -164,13 +311,8 @@
   .rep-mortgage .rep-m-rows{grid-template-columns:1fr 1fr}
   .rep-mortgage .rep-m-out{grid-template-columns:1fr}
   .rep-contact{grid-template-columns:1fr}
+  .rep-features { columns: 1; }
 }
-
-/* CTA en anchorbar */
-.rep-anchorbar .rep-cta{
-  background:#0a7cff; border-color:#0a7cff; color:#fff;
-}
-.rep-anchorbar .rep-cta:hover{ background:#075fcc; border-color:#075fcc; color:#fff; }
 
 /* ===== Listado “tipo PDF” ===== */
 .rep-grid-list{grid-template-columns:repeat(auto-fill,minmax(320px,1fr))}
@@ -206,9 +348,6 @@
   .rep-filters{grid-template-columns:1fr 1fr;gap:10px}
 }
 
-/* CTA en anchorbar */
-.rep-anchorbar .rep-cta{background:#0a7cff;border-color:#0a7cff;color:#fff;}
-.rep-anchorbar .rep-cta:hover{background:#075fcc;border-color:#075fcc;color:#fff;}
 
 /* ==== Fixes Safari para cards ==== */
 .rep-card-slider .rep-cs-stage img{
