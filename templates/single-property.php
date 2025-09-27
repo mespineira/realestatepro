@@ -13,9 +13,13 @@ get_header();
   $m2     = get_post_meta($pid,'superficie_construida',true);
   $hab    = get_post_meta($pid,'habitaciones',true);
   $ban    = get_post_meta($pid,'banos',true);
-  $rating = strtoupper(trim(get_post_meta($pid,'energy_rating',true))); // A..G o EN TRAMITE
   $lat    = get_post_meta($pid,'lat', true);
   $lng    = get_post_meta($pid,'lng', true);
+
+  // Datos de Eficiencia Energética
+  $rating = strtoupper(trim(get_post_meta($pid,'energy_rating',true)));
+  $e_cons = get_post_meta($pid,'energy_consumption',true);
+  $e_emis = get_post_meta($pid,'energy_emissions',true);
 
   // Características (booleans)
   if (!function_exists('rep_get_feature_groups')) {
@@ -86,6 +90,8 @@ get_header();
             <?php if ($slides): ?>
               <img class="rep-g-current" src="<?php echo esc_url($slides[0]['med']); ?>"
                    data-full="<?php echo esc_url($slides[0]['full']); ?>" alt="Imagen de la propiedad"/>
+            <?php else: ?>
+                <img class="rep-g-current" src="<?php echo esc_url(rep_placeholder_img()); ?>" alt="Imagen de la propiedad"/>
             <?php endif; ?>
           </div>
           <button class="rep-g-next" type="button" aria-label="Siguiente">&#10095;</button>
@@ -150,44 +156,56 @@ get_header();
             <?php if($hab): ?><li><strong>Habitaciones:</strong> <?php echo esc_html($hab); ?></li><?php endif; ?>
             <?php if($ban): ?><li><strong>Baños:</strong> <?php echo esc_html($ban); ?></li><?php endif; ?>
             <?php if($ref): ?><li><strong>Referencia:</strong> <?php echo esc_html($ref); ?></li><?php endif; ?>
-
             <?php
-            // Mostrar booleans como lista
             foreach($features as $k){
               if ( isset($all_feature_labels[$k]) ) echo '<li>'.esc_html($all_feature_labels[$k]).'</li>';
             } ?>
           </ul>
 
           <!-- Eficiencia energética -->
-          <div class="rep-energy">
+          <?php if($rating): ?>
+          <div class="rep-energy-cert">
             <h3>Eficiencia energética</h3>
-            <div class="rep-energy-scale" data-rating="<?php echo esc_attr($rating?:'EN TRAMITE'); ?>">
-              <?php
-                $letters=array('A','B','C','D','E','F','G');
-                $is_tramite = !in_array($rating,$letters,true) && ($rating==='EN TRAMITE');
-              ?>
-              <svg viewBox="0 0 300 190" class="rep-energy-svg" role="img" aria-label="Escala energética">
-                <?php foreach($letters as $i=>$L):
-                  $y = 20 + $i*22; $w = 170 + $i*12; $x = 10;
-                  $active = (!$is_tramite && $rating===$L);
-                  $fill = array('#00b050','#7fba00','#c6d300','#f2e200','#f9b233','#f39200','#e30613')[$i];
+            <div class="rep-energy-scale-new">
+              <div class="rep-energy-header">
+                <div>ESCALA DE LA CALIFICACIÓN ENERGÉTICA</div>
+                <div class="rep-energy-col-title">Consumo de energía<br><span>kWh/m² año</span></div>
+                <div class="rep-energy-col-title">Emisiones<br><span>kg CO₂/m² año</span></div>
+              </div>
+              <div class="rep-energy-rows">
+                <?php
+                $letters = array(
+                    'A' => array('color' => '#008c4f', 'label' => 'A'),
+                    'B' => array('color' => '#50a639', 'label' => 'B'),
+                    'C' => array('color' => '#c3d334', 'label' => 'C'),
+                    'D' => array('color' => '#fcec00', 'label' => 'D'),
+                    'E' => array('color' => '#f9b233', 'label' => 'E'),
+                    'F' => array('color' => '#f26d21', 'label' => 'F'),
+                    'G' => array('color' => '#ed1c24', 'label' => 'G'),
+                );
+                $is_tramite = !array_key_exists($rating, $letters);
+
+                foreach($letters as $L => $data):
                 ?>
-                <g>
-                  <rect x="<?php echo $x; ?>" y="<?php echo $y; ?>" width="<?php echo $w; ?>" height="18" rx="3"
-                        fill="<?php echo $fill; ?>" opacity="<?php echo $active? '1':'0.4'; ?>"/>
-                  <text x="<?php echo $x+6; ?>" y="<?php echo $y+13; ?>" font-size="12" fill="#fff" font-weight="700"><?php echo $L; ?></text>
-                  <?php if($active): ?>
-                    <!-- Punto negro a la derecha para indicar la activa -->
-                    <circle cx="<?php echo $x + $w + 10; ?>" cy="<?php echo $y+9; ?>" r="4" fill="#111"/>
-                  <?php endif; ?>
-                </g>
+                <div class="rep-energy-row <?php echo ($rating === $L) ? 'is-active' : ''; ?>">
+                  <div class="rep-energy-letter" style="background-color:<?php echo $data['color']; ?>; color: <?php echo in_array($L, ['A','B','C', 'F', 'G']) ? '#fff' : '#000'; ?>;">
+                    <?php echo $data['label']; ?>
+                  </div>
+                  <div class="rep-energy-value">
+                    <?php if($rating === $L && !$is_tramite && !empty($e_cons)) echo '<span>' . esc_html(number_format_i18n($e_cons, 2)) . '</span>'; ?>
+                  </div>
+                  <div class="rep-energy-value">
+                    <?php if($rating === $L && !$is_tramite && !empty($e_emis)) echo '<span>' . esc_html(number_format_i18n($e_emis, 2)) . '</span>'; ?>
+                  </div>
+                </div>
                 <?php endforeach; ?>
-                <?php if($is_tramite): ?>
-                  <text x="10" y="175" font-size="13" fill="#111" font-weight="700">En trámite</text>
-                <?php endif; ?>
-              </svg>
+              </div>
+              <?php if($is_tramite): ?>
+                <div class="rep-energy-tramite">En trámite</div>
+              <?php endif; ?>
             </div>
           </div>
+          <?php endif; ?>
         </aside>
       </div>
     </section>

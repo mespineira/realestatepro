@@ -18,13 +18,15 @@ function rep_register_meta(){
         'external_source' => array('type'=>'string','single'=>true),
         'external_id'     => array('type'=>'string','single'=>true),
 
-        // Eficiencia energética (A..G o EN TRAMITE)
+        // Eficiencia energética
         'energy_rating'   => array('type'=>'string','single'=>true),
+        'energy_consumption' => array('type'=>'number', 'single'=>true),
+        'energy_emissions' => array('type'=>'number', 'single'=>true),
 
         // Galería: array de IDs
         'gallery_ids'     => array('type'=>'array','single'=>true),
 
-        // NUEVO: Etiqueta de marketing (select)
+        // Etiqueta de marketing (select)
         'label_tag'       => array('type'=>'string','single'=>true),
 
         // Características booleanas (lista expandida)

@@ -27,6 +27,8 @@ function rep_mb_render_details( $post ){
     $ban     = get_post_meta($post->ID,'banos',true);
     $ref     = get_post_meta($post->ID,'referencia',true);
     $energy  = strtoupper(trim(get_post_meta($post->ID,'energy_rating',true)));
+    $e_cons  = get_post_meta($post->ID,'energy_consumption',true);
+    $e_emis  = get_post_meta($post->ID,'energy_emissions',true);
     $label   = get_post_meta($post->ID,'label_tag',true);
     $extsrc  = get_post_meta($post->ID,'external_source',true);
     $extid   = get_post_meta($post->ID,'external_id',true);
@@ -61,8 +63,7 @@ function rep_mb_render_details( $post ){
       .rep-feat-group h4 { margin: 0 0 10px; font-size: 14px; }
       .rep-feat-group[data-property-type] { display: none; } /* Oculto por defecto */
       @media (max-width: 1100px){
-        .rep-grid-4{grid-template-columns:repeat(2,1fr)}
-        .rep-grid-3{grid-template-columns:repeat(2,1fr)}
+        .rep-grid-4, .rep-grid-3, .rep-grid-2 {grid-template-columns:repeat(2,1fr)}
         .rep-feat-grid{grid-template-columns:repeat(2,1fr)}
       }
     </style>
@@ -82,23 +83,29 @@ function rep_mb_render_details( $post ){
 
     <div class="rep-grid-2">
       <div class="rep-mb-field"><label><?php _e('Referencia','real-estate-pro'); ?></label><input type="text" name="rep_mb[referencia]" value="<?php echo esc_attr($ref); ?>"/></div>
-      <div class="rep-mb-field"><label><?php _e('Eficiencia energética','real-estate-pro'); ?></label>
-        <select name="rep_mb[energy_rating]">
-          <?php foreach($energy_opts as $k=>$v): ?><option value="<?php echo esc_attr($k); ?>" <?php selected($energy,$k); ?>><?php echo esc_html($v); ?></option><?php endforeach; ?>
-        </select>
-      </div>
-    </div>
-
-    <div class="rep-grid-2">
-      <div class="rep-mb-field"><label><?php _e('Etiqueta','real-estate-pro'); ?></label>
+       <div class="rep-mb-field"><label><?php _e('Etiqueta','real-estate-pro'); ?></label>
         <select name="rep_mb[label_tag]">
           <?php foreach($label_opts as $k=>$v): ?><option value="<?php echo esc_attr($k); ?>" <?php selected($label,$k); ?>><?php echo esc_html($v); ?></option><?php endforeach; ?>
         </select>
       </div>
     </div>
 
-    <h3 style="margin-top:16px;"><?php _e('Características','real-estate-pro'); ?></h3>
+    <h3 style="margin-top:16px;"><?php _e('Eficiencia Energética','real-estate-pro'); ?></h3>
+    <div class="rep-grid-3">
+        <div class="rep-mb-field"><label><?php _e('Calificación','real-estate-pro'); ?></label>
+            <select name="rep_mb[energy_rating]">
+            <?php foreach($energy_opts as $k=>$v): ?><option value="<?php echo esc_attr($k); ?>" <?php selected($energy,$k); ?>><?php echo esc_html($v); ?></option><?php endforeach; ?>
+            </select>
+        </div>
+        <div class="rep-mb-field"><label><?php _e('Consumo (kWh/m² año)','real-estate-pro'); ?></label>
+            <input type="number" step="any" name="rep_mb[energy_consumption]" value="<?php echo esc_attr($e_cons); ?>"/>
+        </div>
+        <div class="rep-mb-field"><label><?php _e('Emisiones (kg CO₂/m² año)','real-estate-pro'); ?></label>
+            <input type="number" step="any" name="rep_mb[energy_emissions]" value="<?php echo esc_attr($e_emis); ?>"/>
+        </div>
+    </div>
     
+    <h3 style="margin-top:16px;"><?php _e('Características','real-estate-pro'); ?></h3>
     <div id="rep-feature-groups-wrapper">
         <?php foreach ($feature_groups as $group_key => $group_data): ?>
             <div class="rep-feat-group" data-property-type="<?php echo esc_attr($group_key); ?>">
@@ -141,6 +148,8 @@ add_action('save_post_property', function($post_id){
         'banos' => 'intval',
         'referencia' => 'sanitize_text_field',
         'energy_rating' => 'rep_sanitize_energy',
+        'energy_consumption' => 'floatval',
+        'energy_emissions' => 'floatval',
         'label_tag' => 'sanitize_text_field',
         'lat' => 'floatval',
         'lng' => 'floatval'
@@ -152,7 +161,6 @@ add_action('save_post_property', function($post_id){
         }
     }
 
-    // Características (booleans)
     if (!function_exists('rep_get_feature_groups')) {
         require_once REP_PATH . 'inc/utils.php';
     }
@@ -168,7 +176,6 @@ add_action('save_post_property', function($post_id){
         else delete_post_meta($post_id,$k);
     }
 
-    // Si no hay precio principal, derivarlo
     $precio = get_post_meta($post_id,'precio',true);
     if ($precio==='' || $precio===null){
         $pv = get_post_meta($post_id,'precio_venta',true);
