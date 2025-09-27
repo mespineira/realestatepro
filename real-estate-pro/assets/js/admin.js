@@ -95,23 +95,45 @@
       }
     });
 
-    // **NUEVO**: Extractor de coordenadas desde URL de Google Maps
+    // **ACTUALIZADO**: Extractor de coordenadas desde URL de Google Maps (más robusto)
     $('#rep_mb_gmaps_extract').on('click', function() {
       var url = $('#rep_mb_gmaps_url').val();
       if (!url) return;
 
-      // Regex para encontrar latitud y longitud en la URL
-      var regex = /@(-?\d+\.\d+),(-?\d+\.\d+)/;
-      var match = url.match(regex);
+      var lat, lng;
 
-      if (match && match.length >= 3) {
-        var lat = parseFloat(match[1]);
-        var lng = parseFloat(match[2]);
+      // Se intentan varios patrones de URL de Google Maps para máxima compatibilidad.
+      // Prioridad 1: !3d<lat>!4d<lng> (preciso, usado en URLs de "place")
+      var match1 = url.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+      if (match1 && match1.length >= 3) {
+        lat = parseFloat(match1[1]);
+        lng = parseFloat(match1[2]);
+      }
 
+      // Prioridad 2: @<lat>,<lng> (común, centro del mapa)
+      if (lat === undefined || lng === undefined) {
+        var match2 = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+        if (match2 && match2.length >= 3) {
+          lat = parseFloat(match2[1]);
+          lng = parseFloat(match2[2]);
+        }
+      }
+      
+      // Prioridad 3: ll=<lat>,<lng> (parámetro de query)
+      if (lat === undefined || lng === undefined) {
+          var match3 = url.match(/ll=(-?\d+\.\d+),(-?\d+\.\d+)/);
+          if (match3 && match3.length >= 3) {
+              lat = parseFloat(match3[1]);
+              lng = parseFloat(match3[2]);
+          }
+      }
+
+      if (lat !== undefined && lng !== undefined) {
+        // Asignar valores y disparar 'change' para que el mapa se actualice
         $('#rep_mb_lat').val(lat.toFixed(6)).trigger('change');
         $('#rep_mb_lng').val(lng.toFixed(6)).trigger('change');
       } else {
-        alert('No se pudieron encontrar las coordenadas en la URL. Asegúrate de que la URL de Google Maps sea correcta.');
+        alert('No se pudieron encontrar coordenadas en la URL. Asegúrate de que la URL de Google Maps sea correcta y corresponda a un punto concreto.');
       }
     });
 
@@ -139,3 +161,4 @@
   $(document).on('postbox-toggled', function(){ initAll(); });
 
 })(jQuery);
+
