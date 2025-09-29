@@ -20,7 +20,7 @@
   margin:20px 0 14px;
   position:sticky; 
   top:95px; 
-  z-index: 1001; /* Elevado para estar sobre el mapa */
+  z-index: 1001;
   background:#fff; 
   padding:10px;
   border-radius: 12px;
@@ -54,7 +54,7 @@
 }
 
 /* ==== Secciones ==== */
-.rep-section{ scroll-margin-top:150px; margin-top:14px; } /* CORRECCIÓN: Aumentado el margen para el ancla */
+.rep-section{ scroll-margin-top:150px; margin-top:14px; }
 .rep-section h2 {
     font-size: 1.8rem;
     margin-bottom: 20px;
@@ -196,7 +196,8 @@
 .rep-contact input[type="email"],
 .rep-contact input[type="tel"],
 .rep-contact input[type="number"],
-.rep-contact textarea {
+.rep-contact textarea,
+.rep-contact select {
     padding: 12px 15px;
     border: 1px solid #ccc;
     border-radius: 8px;
@@ -204,8 +205,9 @@
     color: #333;
     font-size: 1rem;
     transition: border-color .2s, box-shadow .2s;
+    width: 100%;
 }
-.rep-contact input:focus, .rep-contact textarea:focus {
+.rep-contact input:focus, .rep-contact textarea:focus, .rep-contact select:focus {
     outline: none;
     border-color: #0e7b6c;
     box-shadow: 0 0 0 3px rgba(14, 123, 108, 0.3);
@@ -306,7 +308,6 @@
   .rep-contact{grid-template-columns:1fr}
   .rep-features { columns: 1; }
 
-  /* --- INICIO MEJORAS UI/UX --- */
   .rep-box {
     border: none;
     border-radius: 0;
@@ -316,10 +317,7 @@
   .rep-single-contact, .rep-mortgage {
     padding: 20px;
   }
-  /* --- FIN MEJORAS UI/UX --- */
 }
-
-/* Para móviles pequeños, simulador en una columna para evitar scroll horizontal */
 @media (max-width: 500px) {
     .rep-mortgage .rep-m-rows {
         grid-template-columns: 1fr;
@@ -362,7 +360,7 @@
 
 /* ==== Título del Listado (ajustado) ==== */
 .rep-title-card {
-    font-size: 1.3rem; /* Tamaño reducido */
+    font-size: 1.3rem;
     margin: 10px 0;
 }
 .rep-title-card a {
@@ -427,8 +425,8 @@
 .rep-pagination {
     margin-top: 40px;
 }
-.rep-pagination ul, /* Para shortcode */
-.rep-pagination .page-numbers { /* Para archive */
+.rep-pagination ul,
+.rep-pagination .page-numbers {
     list-style: none;
     display: flex;
     justify-content: center;
@@ -484,16 +482,13 @@
 
 
 /* ==== Filtros ==== */
-.rep-filters{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr 0.8fr 0.8fr 1fr auto;gap:8px;margin:10px 0 16px}
+.rep-filters{display:grid;grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));gap:8px;margin:10px 0 16px}
 .rep-filters input,.rep-filters select{padding:.5rem;border:1px solid #dfe3e8;border-radius:8px}
 .rep-filters .rep-btn{
     background:#0e7b6c;color:#fff;border:none;border-radius:8px;padding:.6rem 1rem; cursor: pointer; transition: background-color .2s;
 }
 .rep-filters .rep-btn:hover { background-color: #0c6b5d; }
 
-@media (max-width: 980px){
-  .rep-filters{grid-template-columns:1fr 1fr;gap:10px}
-}
 
 /* ==== Fixes Safari ==== */
 .rep-card-slider .rep-cs-stage img{
@@ -505,4 +500,61 @@
 .rep-card-slider .rep-cs-next{ -webkit-user-select:none; user-select:none }
 .rep-grid{grid-gap:20px}
 .rep-filters .rep-btn{ -webkit-appearance: none; }
+
+
+/* --- INICIO ESTILOS FORMULARIO VALORACIÓN --- */
+.rep-valuation-form .form-step {
+    border: 1px solid #e9ecef;
+    padding: 30px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+}
+.rep-valuation-form .step-title {
+    margin-top: 0;
+    margin-bottom: 25px;
+    font-size: 1.5rem;
+}
+.rep-valuation-form .step-note {
+    font-size: 0.9em;
+    color: #6c757d;
+}
+.rep-valuation-form .form-navigation {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 30px;
+    border-top: 1px solid #e9ecef;
+    padding-top: 20px;
+}
+.rep-valuation-form .rep-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+.rep-valuation-form .extras-title {
+    margin-top: 30px;
+    margin-bottom: 15px;
+}
+.rep-valuation-form .extras-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+.rep-valuation-form .btn-extra {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    color: #495057;
+}
+.rep-valuation-form .btn-extra.active {
+    background-color: var(--ge-primary-color);
+    border-color: var(--ge-primary-color);
+    color: #fff;
+}
+@media (max-width: 768px) {
+    .rep-valuation-form .rep-grid-2 {
+        grid-template-columns: 1fr;
+    }
+}
+/* --- FIN ESTILOS FORMULARIO VALORACIÓN --- */
+
+
 

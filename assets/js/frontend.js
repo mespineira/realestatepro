@@ -7,11 +7,9 @@
     var target = document.querySelector(id);
     if(!target) return;
     e.preventDefault();
-    // CORRECCIÓN: Ajustado el offset para compensar la barra de anclas y el header fijo.
     var y = target.getBoundingClientRect().top + window.pageYOffset - 150; 
     window.scrollTo({ top: y, behavior: 'smooth' });
 
-    // Si el enlace es "Mapa", disparamos init del mapa
     if (a.hasAttribute('data-rep-goto-map')) {
       document.dispatchEvent(new Event('rep:open-map'));
     }
@@ -62,3 +60,60 @@
   }
   document.addEventListener('DOMContentLoaded', init);
 })();
+
+// ========================================================================
+// NUEVO SCRIPT PARA FORMULARIO DE VALORACIÓN POR PASOS
+// ========================================================================
+(function(){
+    document.addEventListener('DOMContentLoaded', function(){
+        const formWrapper = document.getElementById('rep-valuation-form-wrapper');
+        if (!formWrapper) return;
+
+        const steps = formWrapper.querySelectorAll('.form-step');
+        let currentStep = 1;
+
+        const showStep = (stepNumber) => {
+            steps.forEach(step => {
+                step.style.display = step.dataset.step == stepNumber ? 'block' : 'none';
+            });
+            currentStep = stepNumber;
+        };
+
+        formWrapper.addEventListener('click', function(e){
+            if (e.target.classList.contains('btn-next')) {
+                // Validación del paso 1
+                if (currentStep === 1) {
+                    const refcat = formWrapper.querySelector('[name="val_refcat"]').value.trim();
+                    const address = formWrapper.querySelector('[name="val_address"]').value.trim();
+                    const link = formWrapper.querySelector('[name="val_link"]').value.trim();
+                    if (!refcat && !address && !link) {
+                        alert('Por favor, completa al menos uno de los campos para continuar.');
+                        return;
+                    }
+                }
+                if (currentStep < steps.length) {
+                    showStep(currentStep + 1);
+                }
+            } else if (e.target.classList.contains('btn-prev')) {
+                if (currentStep > 1) {
+                    showStep(currentStep - 1);
+                }
+            } else if (e.target.classList.contains('btn-extra')) {
+                e.preventDefault();
+                const extraKey = e.target.dataset.extra;
+                const input = formWrapper.querySelector(`input[name="val_extras[${extraKey}]"]`);
+                
+                if (e.target.classList.contains('active')) {
+                    e.target.classList.remove('active');
+                    input.value = "0";
+                } else {
+                    e.target.classList.add('active');
+                    input.value = "1";
+                }
+            }
+        });
+
+        showStep(1); // Muestra el primer paso al cargar la página
+    });
+})();
+
