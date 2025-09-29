@@ -46,4 +46,3 @@ $desc = rep_excerpt_chars($raw, 170);
         <p class="rep-excerpt"><?php echo esc_html($desc); ?></p>
     </div>
 </article>
-

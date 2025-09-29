@@ -5,6 +5,7 @@ add_action('wp_enqueue_scripts', function(){
     // Estilos principales del plugin
     wp_enqueue_style('rep-frontend', REP_URL.'assets/css/frontend.css', array(), REP_VERSION);
     wp_enqueue_style('rep-gallery',  REP_URL.'assets/css/gallery.css',  array(), REP_VERSION);
+    wp_enqueue_style('rep-map',      REP_URL.'assets/css/map.css',      array(), REP_VERSION); // << CORRECCIÓN: Estilo del mapa añadido
 
     // Librería de iconos Font Awesome
     wp_enqueue_style('font-awesome', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css', array(), '6.5.2');
