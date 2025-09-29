@@ -113,15 +113,20 @@ add_shortcode('rep_filters', function($atts){
 });
 
 /**
- * Listado – [rep_list operation="venta|alquiler" per_page="12"]
+ * Listado – [rep_list per_page="12" operation="venta" pagination="true"]
  */
 add_shortcode('rep_list', function($atts){
-    $a = shortcode_atts(array('per_page'=>12,'operation'=>''),$atts);
+    $a = shortcode_atts(array(
+        'per_page'   => 12,
+        'operation'  => '',
+        'pagination' => 'true' // Nuevo atributo para controlar la paginación
+    ),$atts);
+
     $paged = max(1, get_query_var('paged') ? get_query_var('paged') : ( isset($_GET['pg']) ? intval($_GET['pg']) : 1 ));
     $args = array(
-        'post_type'=>'property',
-        'posts_per_page'=>intval($a['per_page']),
-        'paged'=>$paged
+        'post_type'      => 'property',
+        'posts_per_page' => intval($a['per_page']),
+        'paged'          => $paged
     );
 
     // Tax query opcional
@@ -160,59 +165,26 @@ add_shortcode('rep_list', function($atts){
     echo '<div class="rep-grid rep-grid-list">';
     if($q->have_posts()):
         while($q->have_posts()): $q->the_post();
-            $pid = get_the_ID();
-            $precio = get_post_meta($pid,'precio',true);
-            $ref    = get_post_meta($pid,'referencia',true);
-            $m2     = get_post_meta($pid,'superficie_construida',true);
-            $hab    = get_post_meta($pid,'habitaciones',true);
-            $ban    = get_post_meta($pid,'banos',true);
-            $label  = get_post_meta($pid,'label_tag',true);
-
-            $imgs = rep_get_card_images($pid, 5);
-            if(!$imgs) $imgs[] = rep_placeholder_img();
-
-            $raw  = get_the_excerpt() ? get_the_excerpt() : get_the_content(null,false);
-            $desc = rep_excerpt_chars($raw, 170);
-
-            echo '<article class="rep-card rep-card-line">';
-            if($label){
-              echo '<span class="rep-badge" data-label-slug="'.esc_attr($label).'">'.esc_html( rep_label_text($label) ).'</span>';
-            }
-
-            $json_imgs = htmlspecialchars( wp_json_encode($imgs), ENT_QUOTES, 'UTF-8' );
-            echo '<div class="rep-card-slider" data-images="'.$json_imgs.'">';
-            echo '  <button class="rep-cs-prev" type="button" aria-label="Anterior">&#10094;</button>';
-            echo '  <a href="'.esc_url(get_permalink()).'" class="rep-cs-stage"><img src="'.esc_url($imgs[0]).'" alt="'.esc_attr(get_the_title()).'"/></a>';
-            echo '  <button class="rep-cs-next" type="button" aria-label="Siguiente">&#10095;</button>';
-            echo '</div>';
-
-            if($precio) echo '<div class="rep-price">'.esc_html(rep_price_format($precio)).'</div>';
-
-            echo '<ul class="rep-mini-feats">';
-            if($ref) echo '<li title="Referencia"><i class="fas fa-tag"></i> '.esc_html($ref).'</li>';
-            if($m2)  echo '<li title="Superficie"><i class="fas fa-ruler-combined"></i> '.esc_html($m2).' m²</li>';
-            if($hab) echo '<li title="Habitaciones"><i class="fas fa-bed"></i> '.esc_html($hab).'</li>';
-            if($ban) echo '<li title="Baños"><i class="fas fa-bath"></i> '.esc_html($ban).'</li>';
-            echo '</ul>';
-
-            echo '<h3 class="rep-title-card"><a href="'.esc_url(get_permalink()).'">'.esc_html(get_the_title()).'</a></h3>';
-            echo '<p class="rep-excerpt">'.esc_html($desc).'</p>';
-
-            echo '</article>';
+            // Para asegurar consistencia, incluimos la plantilla de la tarjeta
+            include( REP_PATH . 'templates/parts/property-card.php' );
         endwhile; wp_reset_postdata();
     else:
         echo '<p>No hay inmuebles que coincidan con tu búsqueda.</p>';
     endif;
     echo '</div>';
 
-    $links=paginate_links(array(
-        'total'=>$q->max_num_pages,
-        'current'=>$paged,
-        'type'=>'list',
-        'prev_text' => '<i class="fas fa-chevron-left"></i>',
-        'next_text' => '<i class="fas fa-chevron-right"></i>',
-    ));
-    if($links) echo '<nav class="rep-pagination">'.$links.'</nav>';
+    // Mostrar paginación solo si el atributo es 'true'
+    if ( $a['pagination'] === 'true' && $q->max_num_pages > 1 ) {
+        $links = paginate_links(array(
+            'total'     => $q->max_num_pages,
+            'current'   => $paged,
+            'type'      => 'list',
+            'prev_text' => '<i class="fas fa-chevron-left"></i>',
+            'next_text' => '<i class="fas fa-chevron-right"></i>',
+        ));
+        if($links) echo '<nav class="rep-pagination">'.$links.'</nav>';
+    }
+
     return ob_get_clean();
 });
 

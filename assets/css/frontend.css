@@ -1,7 +1,6 @@
 /* ==== Layout base ==== */
 .rep-container{max-width:1200px;margin:0 auto;padding:20px;}
 .rep-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:20px;}
-.rep-card{border:1px solid #e5e5e5;border-radius:12px;padding:12px;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.03)}
 .rep-card-xl{background:#fff;border:1px solid #e8e8e8;border-radius:14px;padding:18px;box-shadow:0 4px 14px rgba(0,0,0,.04)}
 .rep-thumb{display:block;width:100%;height:auto;border-radius:8px}
 
@@ -162,6 +161,11 @@
     background: #f8f9fa;
     border: 1px solid #e9ecef;
 }
+
+.rep-single-contact {
+    background: #f8f9fa;
+}
+
 .rep-single-contact h2, .rep-mortgage h2 {
     margin-top: 0;
     margin-bottom: 30px;
@@ -169,6 +173,7 @@
     text-align: center;
     color: #000;
 }
+
 .rep-contact {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -293,7 +298,6 @@
     margin-top: 5px;
 }
 
-
 /* ==== Responsive ==== */
 @media (max-width:900px){
   .rep-two{grid-template-columns:1fr}
@@ -320,30 +324,42 @@
     display: flex;
     flex-direction: column;
     transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 2px 10px rgba(0,0,0,.03);
 }
 .rep-card-line:hover {
     transform: translateY(-5px);
     box-shadow: 0 8px 25px rgba(0,0,0,.08);
 }
-.rep-card-line .rep-card-content {
-    padding: 15px 20px;
+.rep-card-content {
+    padding: 15px 20px 20px;
     display: flex;
     flex-direction: column;
     flex-grow: 1;
 }
 
 /* ==== Título del Listado (ajustado) ==== */
-.rep-card-line .rep-title {
+.rep-title-card {
     font-size: 1.3rem; /* Tamaño reducido */
     margin: 10px 0;
 }
-.rep-card-line .rep-title a {
+.rep-title-card a {
     color: #111;
     text-decoration: none;
     transition: color 0.2s;
 }
-.rep-card-line .rep-title a:hover {
+.rep-title-card a:hover {
     color: #0e7b6c;
+}
+
+/* ==== Precio (revisado) ==== */
+.rep-card-content .rep-price {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #0e7b6c;
+    margin-bottom: 10px;
 }
 
 /* ==== Etiquetas con Colores ==== */
@@ -378,7 +394,7 @@
     align-items: center;
     gap: 8px;
 }
-.rep-mini-feats i.fa-solid {
+.rep-mini-feats i {
     color: #0e7b6c;
     font-size: 1.1em;
 }
@@ -387,7 +403,8 @@
 .rep-pagination {
     margin-top: 40px;
 }
-.rep-pagination .page-numbers {
+.rep-pagination ul, /* Para shortcode */
+.rep-pagination .page-numbers { /* Para archive */
     list-style: none;
     display: flex;
     justify-content: center;
@@ -395,9 +412,9 @@
     gap: 8px;
     padding: 0;
 }
-.rep-pagination .page-numbers li { margin: 0; }
-.rep-pagination .page-numbers a,
-.rep-pagination .page-numbers span {
+.rep-pagination li { margin: 0; }
+.rep-pagination a,
+.rep-pagination span {
     display: flex;
     justify-content: center;
     align-items: center;
@@ -410,18 +427,19 @@
     font-weight: 600;
     transition: all .2s;
 }
-.rep-pagination .page-numbers a:hover {
+.rep-pagination a:hover {
     background-color: #0e7b6c;
     color: #fff;
     border-color: #0e7b6c;
 }
-.rep-pagination .page-numbers span.current {
+.rep-pagination .current {
     background-color: #0e7b6c;
     color: #fff;
     border-color: #0e7b6c;
 }
-.rep-pagination .page-numbers .dots {
+.rep-pagination .dots {
     border: none;
+    background: none;
 }
 
 
@@ -462,3 +480,4 @@
 .rep-card-slider .rep-cs-next{ -webkit-user-select:none; user-select:none }
 .rep-grid{grid-gap:20px}
 .rep-filters .rep-btn{ -webkit-appearance: none; }
+
