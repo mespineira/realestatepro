@@ -7,7 +7,8 @@
     var target = document.querySelector(id);
     if(!target) return;
     e.preventDefault();
-    var y = target.getBoundingClientRect().top + window.pageYOffset - 80; // offset por header fijo
+    // CORRECCIÓN: Ajustado el offset para compensar la barra de anclas y el header fijo.
+    var y = target.getBoundingClientRect().top + window.pageYOffset - 150; 
     window.scrollTo({ top: y, behavior: 'smooth' });
 
     // Si el enlace es "Mapa", disparamos init del mapa

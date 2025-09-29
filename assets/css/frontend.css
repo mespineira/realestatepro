@@ -54,7 +54,7 @@
 }
 
 /* ==== Secciones ==== */
-.rep-section{ scroll-margin-top:120px; margin-top:14px; }
+.rep-section{ scroll-margin-top:150px; margin-top:14px; } /* CORRECCIÓN: Aumentado el margen para el ancla */
 .rep-section h2 {
     font-size: 1.8rem;
     margin-bottom: 20px;
@@ -305,6 +305,25 @@
   .rep-mortgage .rep-m-out{grid-template-columns:1fr}
   .rep-contact{grid-template-columns:1fr}
   .rep-features { columns: 1; }
+
+  /* --- INICIO MEJORAS UI/UX --- */
+  .rep-box {
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    background-color: transparent;
+  }
+  .rep-single-contact, .rep-mortgage {
+    padding: 20px;
+  }
+  /* --- FIN MEJORAS UI/UX --- */
+}
+
+/* Para móviles pequeños, simulador en una columna para evitar scroll horizontal */
+@media (max-width: 500px) {
+    .rep-mortgage .rep-m-rows {
+        grid-template-columns: 1fr;
+    }
 }
 
 
@@ -320,7 +339,7 @@
     gap: 30px;
 }
 .rep-card-line {
-    position: relative; /* <<<< CORRECCIÓN 1: Añadido para posicionar la etiqueta hija */
+    position: relative; 
     padding: 0;
     display: flex;
     flex-direction: column;
@@ -363,7 +382,7 @@
     margin-bottom: 10px;
 }
 
-/* ==== Etiquetas con Colores (INICIO CORRECCIÓN 2) ==== */
+/* ==== Etiquetas con Colores ==== */
 .rep-badge {
   position:absolute; left:12px; top:12px;
   padding: 5px 10px; border-radius: 6px; font-weight:700; font-size:.8rem; z-index:2;
@@ -378,12 +397,10 @@
 .rep-badge[data-label-slug="reservado"] { background-color: #7f8c8d; }
 .rep-badge[data-label-slug="en-exclusiva"] { background-color: #0e7b6c; }
 .rep-badge[data-label-slug="producto-estrella"] { background-color: #d35400; }
-/* Nuevos colores añadidos */
-.rep-badge[data-label-slug="ideal-inversores"] { background-color: #f1c40f; color: #333; } /* Amarillo, texto oscuro */
-.rep-badge[data-label-slug="origen-bancario"] { background-color: #2c3e50; } /* Azul oscuro */
-.rep-badge[data-label-slug="estudiantes"] { background-color: #16a085; } /* Turquesa */
-.rep-badge[data-label-slug="precio-negociable"] { background-color: #27ae60; } /* Verde esmeralda */
-/* (FIN CORRECCIÓN 2) */
+.rep-badge[data-label-slug="ideal-inversores"] { background-color: #f1c40f; color: #333; }
+.rep-badge[data-label-slug="origen-bancario"] { background-color: #2c3e50; }
+.rep-badge[data-label-slug="estudiantes"] { background-color: #16a085; }
+.rep-badge[data-label-slug="precio-negociable"] { background-color: #27ae60; }
 
 /* ==== Mini Características con Font Awesome ==== */
 .rep-mini-feats {
@@ -451,13 +468,14 @@
 
 
 /* ==== Slider de la Tarjeta ==== */
-.rep-card-slider{position:relative;overflow:hidden;border-radius:12px 12px 0 0;} /* Ajustado */
+.rep-card-slider{position:relative;overflow:hidden;border-radius:12px 12px 0 0;}
 .rep-card-slider .rep-cs-stage img{display:block;width:100%;height:220px;object-fit:cover}
 .rep-card-slider .rep-cs-prev,
 .rep-card-slider .rep-cs-next{
   position:absolute;top:50%;transform:translateY(-50%);
   background:rgba(0,0,0,.4);color:#fff;border:none;width:34px;height:34px;border-radius:50%;cursor:pointer;
   transition: background-color .2s;
+  z-index: 5;
 }
 .rep-card-slider .rep-cs-prev:hover,
 .rep-card-slider .rep-cs-next:hover{background:rgba(0,0,0,.7)}
@@ -487,3 +505,4 @@
 .rep-card-slider .rep-cs-next{ -webkit-user-select:none; user-select:none }
 .rep-grid{grid-gap:20px}
 .rep-filters .rep-btn{ -webkit-appearance: none; }
+
