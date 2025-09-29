@@ -24,8 +24,8 @@ $desc = rep_excerpt_chars($raw, 170);
     <?php endif; ?>
 
     <div class="rep-card-slider" data-images="<?php echo esc_attr( htmlspecialchars( wp_json_encode($imgs), ENT_QUOTES, 'UTF-8') ); ?>">
-      <button class="rep-cs-prev" type="button" aria-label="Anterior">&#10094;</button>
       <a href="<?php the_permalink(); ?>" class="rep-cs-stage"><img src="<?php echo esc_url($imgs[0]); ?>" alt="<?php the_title_attribute(); ?>"/></a>
+      <button class="rep-cs-prev" type="button" aria-label="Anterior">&#10094;</button>
       <button class="rep-cs-next" type="button" aria-label="Siguiente">&#10095;</button>
     </div>
     
