@@ -320,6 +320,7 @@
     gap: 30px;
 }
 .rep-card-line {
+    position: relative; /* <<<< CORRECCIÓN 1: Añadido para posicionar la etiqueta hija */
     padding: 0;
     display: flex;
     flex-direction: column;
@@ -362,7 +363,7 @@
     margin-bottom: 10px;
 }
 
-/* ==== Etiquetas con Colores ==== */
+/* ==== Etiquetas con Colores (INICIO CORRECCIÓN 2) ==== */
 .rep-badge {
   position:absolute; left:12px; top:12px;
   padding: 5px 10px; border-radius: 6px; font-weight:700; font-size:.8rem; z-index:2;
@@ -377,6 +378,12 @@
 .rep-badge[data-label-slug="reservado"] { background-color: #7f8c8d; }
 .rep-badge[data-label-slug="en-exclusiva"] { background-color: #0e7b6c; }
 .rep-badge[data-label-slug="producto-estrella"] { background-color: #d35400; }
+/* Nuevos colores añadidos */
+.rep-badge[data-label-slug="ideal-inversores"] { background-color: #f1c40f; color: #333; } /* Amarillo, texto oscuro */
+.rep-badge[data-label-slug="origen-bancario"] { background-color: #2c3e50; } /* Azul oscuro */
+.rep-badge[data-label-slug="estudiantes"] { background-color: #16a085; } /* Turquesa */
+.rep-badge[data-label-slug="precio-negociable"] { background-color: #27ae60; } /* Verde esmeralda */
+/* (FIN CORRECCIÓN 2) */
 
 /* ==== Mini Características con Font Awesome ==== */
 .rep-mini-feats {
@@ -480,4 +487,3 @@
 .rep-card-slider .rep-cs-next{ -webkit-user-select:none; user-select:none }
 .rep-grid{grid-gap:20px}
 .rep-filters .rep-btn{ -webkit-appearance: none; }
-
