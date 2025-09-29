@@ -11,6 +11,7 @@ add_shortcode('rep_filters', function($atts){
     // Taxonomías para selects
     $types = get_terms(array('taxonomy'=>'property_type','hide_empty'=>false));
     $cities= get_terms(array('taxonomy'=>'property_city','hide_empty'=>false));
+    $zones = get_terms(array('taxonomy'=>'property_zone','hide_empty'=>false));
     $operations = get_terms(array('taxonomy'=>'property_operation', 'hide_empty' => false));
 
     // Valores actuales (GET)
@@ -53,20 +54,22 @@ add_shortcode('rep_filters', function($atts){
     <?php 
     // Estilo FULL (por defecto)
     else: 
-        $min  = isset($get['min']) ? intval($get['min']) : '';
-        $max  = isset($get['max']) ? intval($get['max']) : '';
-        $hab  = isset($get['hab']) ? intval($get['hab']) : '';
-        $ban  = isset($get['ban']) ? intval($get['ban']) : '';
-        $label= isset($get['label'])? sanitize_text_field($get['label']) : '';
-        if (!function_exists('rep_label_options')) require_once REP_PATH.'inc/utils.php';
-        $label_opts = rep_label_options();
+        // --- INICIO DE MODIFICACIONES ---
+        $ref      = isset($get['ref']) ? esc_attr($get['ref']) : '';
+        $zone     = isset($get['zone'])? sanitize_text_field($get['zone']) : '';
+        $min_price= isset($get['min_price']) ? intval($get['min_price']) : '';
+        $max_price= isset($get['max_price']) ? intval($get['max_price']) : '';
+        $min_m2   = isset($get['min_m2']) ? intval($get['min_m2']) : '';
+        $max_m2   = isset($get['max_m2']) ? intval($get['max_m2']) : '';
+        $hab      = isset($get['hab']) ? intval($get['hab']) : '';
+        $ban      = isset($get['ban']) ? intval($get['ban']) : '';
     ?>
     <form class="rep-filters" method="get" action="<?php echo $action; ?>">
       <?php if($a['operation']): ?>
         <input type="hidden" name="operation" value="<?php echo esc_attr($a['operation']); ?>"/>
       <?php endif; ?>
 
-      <input type="search" name="s" placeholder="Buscar..." value="<?php echo $s; ?>"/>
+      <input type="text" name="ref" placeholder="Referencia" value="<?php echo $ref; ?>"/>
 
       <select name="type">
         <option value="">Tipo</option>
@@ -81,9 +84,19 @@ add_shortcode('rep_filters', function($atts){
           <option value="<?php echo esc_attr($c->slug); ?>" <?php selected($city,$c->slug); ?>><?php echo esc_html($c->name); ?></option>
         <?php endforeach; ?>
       </select>
+      
+      <select name="zone">
+        <option value="">Zona</option>
+        <?php foreach($zones as $z): ?>
+          <option value="<?php echo esc_attr($z->slug); ?>" <?php selected($zone,$z->slug); ?>><?php echo esc_html($z->name); ?></option>
+        <?php endforeach; ?>
+      </select>
 
-      <input type="number" name="min" placeholder="Precio mín." value="<?php echo $min; ?>" step="500">
-      <input type="number" name="max" placeholder="Precio máx." value="<?php echo $max; ?>" step="500">
+      <input type="number" name="min_price" placeholder="Precio mín." value="<?php echo $min_price; ?>" step="500">
+      <input type="number" name="max_price" placeholder="Precio máx." value="<?php echo $max_price; ?>" step="500">
+      
+      <input type="number" name="min_m2" placeholder="Superficie mín." value="<?php echo $min_m2; ?>" step="1">
+      <input type="number" name="max_m2" placeholder="Superficie máx." value="<?php echo $max_m2; ?>" step="1">
 
       <select name="hab">
         <option value="">Hab.</option>
@@ -99,16 +112,11 @@ add_shortcode('rep_filters', function($atts){
         <?php endfor; ?>
       </select>
 
-      <select name="label">
-        <option value="">Etiqueta</option>
-        <?php foreach($label_opts as $k=>$v): if($k==='') continue; ?>
-          <option value="<?php echo esc_attr($k); ?>" <?php selected($label,$k); ?>><?php echo esc_html($v); ?></option>
-        <?php endforeach; ?>
-      </select>
-
       <button type="submit" class="rep-btn">Buscar</button>
     </form>
-    <?php endif;
+    <?php 
+    // --- FIN DE MODIFICACIONES ---
+    endif;
     return ob_get_clean();
 });
 
@@ -119,45 +127,49 @@ add_shortcode('rep_list', function($atts){
     $a = shortcode_atts(array(
         'per_page'   => 12,
         'operation'  => '',
-        'pagination' => 'true' // Nuevo atributo para controlar la paginación
+        'pagination' => 'true'
     ),$atts);
 
     $paged = max(1, get_query_var('paged') ? get_query_var('paged') : ( isset($_GET['pg']) ? intval($_GET['pg']) : 1 ));
+    
     $args = array(
         'post_type'      => 'property',
         'posts_per_page' => intval($a['per_page']),
         'paged'          => $paged
     );
 
-    // Tax query opcional
-    $tax = array('relation'=>'AND');
-    
-    // Unificamos el parámetro de operación
+    // --- INICIO DE MODIFICACIONES ---
+    $tax_query = array('relation'=>'AND');
+    $meta_query = array('relation'=>'AND');
+
+    // Forzar operación si viene del shortcode
     $operation_slug = $a['operation'] ? $a['operation'] : (isset($_GET['operation']) ? sanitize_text_field($_GET['operation']) : '');
     if ($operation_slug) {
-        $tax[] = array('taxonomy'=>'property_operation','field'=>'slug','terms'=>array($operation_slug));
+        $tax_query[] = array('taxonomy'=>'property_operation','field'=>'slug','terms'=>array($operation_slug));
     }
     
-    if (!empty($_GET['type'])) $tax[] = array('taxonomy'=>'property_type','field'=>'slug','terms'=>array(sanitize_text_field($_GET['type'])));
-    if (!empty($_GET['city'])) $tax[] = array('taxonomy'=>'property_city','field'=>'slug','terms'=>array(sanitize_text_field($_GET['city'])));
-    if (count($tax)>1) $args['tax_query']=$tax;
-
-    // Meta query
-    $meta = array('relation'=>'AND');
-    if (!empty($_GET['min'])) $meta[] = array('key'=>'precio','value'=>intval($_GET['min']),'compare'=>'>=','type'=>'NUMERIC');
-    if (!empty($_GET['max'])) $meta[] = array('key'=>'precio','value'=>intval($_GET['max']),'compare'=>'<=','type'=>'NUMERIC');
-    if (!empty($_GET['hab'])) $meta[] = array('key'=>'habitaciones','value'=>intval($_GET['hab']),'compare'=>'>=','type'=>'NUMERIC');
-    if (!empty($_GET['ban'])) $meta[] = array('key'=>'banos','value'=>intval($_GET['ban']),'compare'=>'>=','type'=>'NUMERIC');
-
-    if (!function_exists('rep_normalize_label_slug')) require_once REP_PATH.'inc/utils.php';
-    if (!empty($_GET['label'])) {
-        $label_slug = rep_normalize_label_slug( sanitize_text_field($_GET['label']) );
-        $meta[] = array('key'=>'label_tag','value'=>$label_slug);
-    }
+    // Taxonomías
+    if (!empty($_GET['type'])) $tax_query[] = array('taxonomy'=>'property_type','field'=>'slug','terms'=>array(sanitize_text_field($_GET['type'])));
+    if (!empty($_GET['city'])) $tax_query[] = array('taxonomy'=>'property_city','field'=>'slug','terms'=>array(sanitize_text_field($_GET['city'])));
+    if (!empty($_GET['zone'])) $tax_query[] = array('taxonomy'=>'property_zone','field'=>'slug','terms'=>array(sanitize_text_field($_GET['zone'])));
     
-    if (count($meta)>1) $args['meta_query']=$meta;
+    // Metas
+    if (!empty($_GET['ref'])) $meta_query[] = array('key'=>'referencia','value'=> sanitize_text_field($_GET['ref']),'compare'=>'=');
+    if (!empty($_GET['min_price'])) $meta_query[] = array('key'=>'precio','value'=>intval($_GET['min_price']),'compare'=>'>=','type'=>'NUMERIC');
+    if (!empty($_GET['max_price'])) $meta_query[] = array('key'=>'precio','value'=>intval($_GET['max_price']),'compare'=>'<=','type'=>'NUMERIC');
+    if (!empty($_GET['min_m2'])) $meta_query[] = array('key'=>'superficie_construida','value'=>intval($_GET['min_m2']),'compare'=>'>=','type'=>'NUMERIC');
+    if (!empty($_GET['max_m2'])) $meta_query[] = array('key'=>'superficie_construida','value'=>intval($_GET['max_m2']),'compare'=>'<=','type'=>'NUMERIC');
+    if (!empty($_GET['hab'])) $meta_query[] = array('key'=>'habitaciones','value'=>intval($_GET['hab']),'compare'=>'>=','type'=>'NUMERIC');
+    if (!empty($_GET['ban'])) $meta_query[] = array('key'=>'banos','value'=>intval($_GET['ban']),'compare'=>'>=','type'=>'NUMERIC');
+    
+    // Búsqueda general (portada)
+    if (!empty($_GET['s'])) {
+         $args['s'] = sanitize_text_field($_GET['s']);
+    }
 
-    if (!empty($_GET['s'])) $args['s'] = sanitize_text_field($_GET['s']);
+    if (count($tax_query) > 1) $args['tax_query'] = $tax_query;
+    if (count($meta_query) > 1) $args['meta_query'] = $meta_query;
+    // --- FIN DE MODIFICACIONES ---
 
     $q = new WP_Query($args);
 
@@ -165,7 +177,6 @@ add_shortcode('rep_list', function($atts){
     echo '<div class="rep-grid rep-grid-list">';
     if($q->have_posts()):
         while($q->have_posts()): $q->the_post();
-            // Para asegurar consistencia, incluimos la plantilla de la tarjeta
             include( REP_PATH . 'templates/parts/property-card.php' );
         endwhile; wp_reset_postdata();
     else:
@@ -173,7 +184,6 @@ add_shortcode('rep_list', function($atts){
     endif;
     echo '</div>';
 
-    // Mostrar paginación solo si el atributo es 'true'
     if ( $a['pagination'] === 'true' && $q->max_num_pages > 1 ) {
         $links = paginate_links(array(
             'total'     => $q->max_num_pages,
@@ -223,4 +233,3 @@ add_shortcode('rep_mortgage', function($atts){
     <?php
     return ob_get_clean();
 });
-
