@@ -1,6 +1,6 @@
 <?php
 /**
- * Archive Property Template – tarjeta tipo PDF
+ * Archive Property Template
  */
 if ( ! defined( 'ABSPATH' ) ) exit;
 get_header();
@@ -42,48 +42,41 @@ get_header();
       ?>
       <article <?php post_class('rep-card rep-card-line'); ?>>
         <?php if($label): ?>
-          <span class="rep-badge"><?php echo esc_html( rep_label_text($label) ); ?></span>
+          <span class="rep-badge" data-label-slug="<?php echo esc_attr($label); ?>"><?php echo esc_html( rep_label_text($label) ); ?></span>
         <?php endif; ?>
-
-        <?php
-          if (!function_exists('rep_svg')){
-            function rep_svg($name){
-              $icons = array(
-                'tag'  => '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M20 10l-8-8H4v8l8 8 8-8z" stroke="currentColor" stroke-width="2" fill="none"/></svg>',
-                'm2'   => '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2" fill="none"/></svg>',
-                'bed'  => '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 7h18v8H3zM3 7V5M21 7V5M3 15v4M21 15v4" stroke="currentColor" stroke-width="2"/></svg>',
-                'bath' => '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M7 10h10v7H7zM5 17h14M9 7a3 3 0 0 1 6 0v3" stroke="currentColor" stroke-width="2"/></svg>'
-              );
-              return isset($icons[$name]) ? $icons[$name] : '';
-            }
-          }
-        ?>
 
         <div class="rep-card-slider" data-images="<?php echo esc_attr( htmlspecialchars( wp_json_encode($imgs), ENT_QUOTES, 'UTF-8') ); ?>">
           <button class="rep-cs-prev" type="button" aria-label="Anterior">&#10094;</button>
-          <a href="<?php the_permalink(); ?>" class="rep-cs-stage"><img src="<?php echo esc_url($imgs[0]); ?>" alt=""/></a>
+          <a href="<?php the_permalink(); ?>" class="rep-cs-stage"><img src="<?php echo esc_url($imgs[0]); ?>" alt="<?php the_title_attribute(); ?>"/></a>
           <button class="rep-cs-next" type="button" aria-label="Siguiente">&#10095;</button>
         </div>
+        
+        <div class="rep-card-content">
+            <?php if($precio): ?><div class="rep-price"><?php echo esc_html(rep_price_format($precio)); ?></div><?php endif; ?>
 
-        <?php if($precio): ?><div class="rep-price"><?php echo esc_html(rep_price_format($precio)); ?></div><?php endif; ?>
+            <h2 class="rep-title"><a href="<?php the_permalink(); ?>"><?php the_title(); ?></a></h2>
 
-        <ul class="rep-mini-feats">
-          <?php
-            if($ref) echo '<li>'.rep_svg('tag').esc_html($ref).'</li>';
-            if($m2)  echo '<li>'.rep_svg('m2').esc_html($m2).' m²</li>';
-            if($hab) echo '<li>'.rep_svg('bed').esc_html($hab).'</li>';
-            if($ban) echo '<li>'.rep_svg('bath').esc_html($ban).'</li>';
-          ?>
-        </ul>
+            <ul class="rep-mini-feats">
+              <?php
+                if($ref) echo '<li title="Referencia"><i class="fa-solid fa-tag"></i>'.esc_html($ref).'</li>';
+                if($m2)  echo '<li title="Superficie"><i class="fa-solid fa-ruler-combined"></i>'.esc_html($m2).' m²</li>';
+                if($hab) echo '<li title="Habitaciones"><i class="fa-solid fa-bed"></i>'.esc_html($hab).'</li>';
+                if($ban) echo '<li title="Baños"><i class="fa-solid fa-bath"></i>'.esc_html($ban).'</li>';
+              ?>
+            </ul>
+            
+            <p class="rep-excerpt"><?php echo esc_html($desc); ?></p>
+        </div>
 
-        <h2 class="rep-title"><a href="<?php the_permalink(); ?>"><?php the_title(); ?></a></h2>
-        <p class="rep-excerpt"><?php echo esc_html($desc); ?></p>
       </article>
     <?php endwhile; else: ?>
       <p>No hay inmuebles.</p>
     <?php endif; ?>
   </div>
 
-  <nav class="rep-pagination"><?php the_posts_pagination(); ?></nav>
+  <nav class="rep-pagination"><?php the_posts_pagination(array(
+      'prev_text' => '<i class="fa-solid fa-arrow-left"></i>',
+      'next_text' => '<i class="fa-solid fa-arrow-right"></i>',
+  )); ?></nav>
 </main>
 <?php get_footer(); ?>
