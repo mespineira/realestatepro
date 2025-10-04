@@ -5,8 +5,8 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 add_action('admin_menu', function(){
     add_submenu_page(
         'edit.php?post_type=property',
-        'Mobilia',
-        'Mobilia',
+        'Mobilia API Sync',
+        'Mobilia API',
         'manage_options',
         'rep-mobilia',
         'rep_mobilia_admin_page'
@@ -18,13 +18,13 @@ function rep_mobilia_admin_page(){
     if ( isset($_POST['rep_mobilia_manual']) && check_admin_referer('rep_mobilia_manual','rep_mobilia_manual_nonce') ){
         delete_option('rep_mobilia_batch');
         do_action('rep_mobilia_run_sync');
-        echo '<div class="notice notice-success is-dismissible"><p>Sincronización iniciada. Se procesará por lotes automáticamente.</p></div>';
+        echo '<div class="notice notice-success is-dismissible"><p>Sincronización iniciada. Se procesará por lotes automáticamente. Revisa el archivo debug.log para ver los detalles.</p></div>';
     }
 
     $last  = get_option('rep_mobilia_last_status', array());
-    $batch = get_option('rep_mobilia_batch', array('offset'=>0,'done'=>0,'total'=>0));
+    $batch = get_option('rep_mobilia_batch', array('page'=>1,'done'=>0,'total'=>0, 'finished' => false));
 
-    echo '<div class="wrap"><h1>Mobilia – Sincronización</h1>';
+    echo '<div class="wrap"><h1>Mobilia – Sincronización API</h1>';
 
     echo '<form method="post" style="margin:1em 0;">';
     wp_nonce_field('rep_mobilia_manual','rep_mobilia_manual_nonce');
@@ -35,8 +35,12 @@ function rep_mobilia_admin_page(){
 
     $total  = intval($batch['total']);
     $done   = intval($batch['done']);
+    $finished = $batch['finished'] ?? false;
     echo '<h2>Progreso</h2>';
-    echo '<p><strong>Total:</strong> '.esc_html($total).' &nbsp; <strong>Procesados:</strong> '.esc_html($done).'</p>';
+    if ($finished) {
+        echo '<p><strong>Sincronización completada.</strong></p>';
+    }
+    echo '<p><strong>Total de inmuebles en Mobilia:</strong> '.esc_html($total).' &nbsp; <strong>Procesados hasta ahora:</strong> '.esc_html($done).'</p>';
 
     echo '<h2>Último estado</h2>';
     echo '<pre style="max-height:300px;overflow:auto;background:#fff;border:1px solid #ccd0d4;padding:10px;">'
@@ -45,245 +49,248 @@ function rep_mobilia_admin_page(){
     echo '</div>';
 }
 
-// Construir URL con parámetros
-function rep_mobilia_build_url(){
-    $url = rep_get_setting('mobilia_url','');
-    if ( ! $url ) return '';
-    $params = rep_get_setting('mobilia_params',array());
-    $q = array();
-    if ( !empty($params['descripcionesHtml']) ) $q['descripcionesHtml']=1;
-    if ( !empty($params['mostrarAlias']) )     $q['mostrarAlias']=1;
-    if ( !empty($params['fotosAmpliada']) )    $q['fotosAmpliada']=1;
-    if ( isset($params['marcaAgua']) )         $q['marcaAgua']=intval($params['marcaAgua']);
-    if ( $q ) $url .= (strpos($url,'?')===false?'?':'&').http_build_query($q);
-    return $url;
-}
-
-// Descargar XML
-function rep_mobilia_fetch_xml(){
-    $url = rep_mobilia_build_url();
-    if ( ! $url ) return new WP_Error('no_url','No hay URL de Mobilia configurada.');
-    $res = wp_remote_get($url,array('timeout'=>30,'redirection'=>3,'user-agent'=>'RealEstatePro/1.3'));
-    if ( is_wp_error($res) ) return $res;
-    $code = wp_remote_retrieve_response_code($res);
-    if ( $code !== 200 ) return new WP_Error('http','HTTP '.$code);
-    return wp_remote_retrieve_body($res);
-}
-
-// Parse XML
-function rep_mobilia_parse_xml($str){
-    libxml_use_internal_errors(true);
-    $xml = simplexml_load_string($str);
-    if ( ! $xml ) return new WP_Error('xml','Error parseando XML');
-    return $xml;
-}
-
-// Guardar un inmueble
-function rep_mobilia_map_and_save($node){
-    $id   = (string)$node->Id;
-    $ref  = (string)$node->Referencia;
-    $tit  = (string)$node->Titulo;
-    $desc = (string)($node->DescripcionAmpliada ?: $node->Descripcion);
-    $grp  = (string)$node->GrupoInmueble; // tipo
-    $prov = (string)$node->Provincia;
-    $pob  = (string)$node->Poblacion;
-    $zona = (string)$node->Zona;
-    $lat  = (string)$node->Latitud;
-    $lng  = (string)$node->Longitud;
-
-    // Fallback título
-    if ( trim($tit)==='' ){
-        $parts=array(); if($grp)$parts[]=$grp; if($pob)$parts[]=$pob; if($zona)$parts[]=$zona; if($ref)$parts[]='Ref '.$ref;
-        $tit = $parts ? implode(' · ',$parts) : 'Propiedad '.$id;
+// Obtener datos de la API de forma paginada
+function rep_mobilia_fetch_properties_from_api($page = 1, $per_page = 20) {
+    $api_key = rep_get_setting('mobilia_api_key', '');
+    
+    // --- INICIO DE LOGS ---
+    error_log('[Mobilia Sync] Iniciando petición a la API.');
+    if ( ! $api_key ) {
+        error_log('[Mobilia Sync] ERROR: No se encontró la API Key en los ajustes.');
+        return new WP_Error('no_api_key', 'No hay API Key de Mobilia configurada.');
     }
+    // Para ver si la clave tiene espacios o caracteres extraños
+    error_log('[Mobilia Sync] API Key obtenida (longitud ' . strlen($api_key) . '): "' . $api_key . '"');
+    // --- FIN DE LOGS ---
 
-    // Buscar existente
-    $existing = get_posts(array(
-        'post_type'=>'property',
-        'meta_key'=>'external_id',
-        'meta_value'=>$id,
-        'posts_per_page'=>1,
-        'post_status'=>array('publish','draft','trash')
+    $api_url = 'https://api.mobiliagestion.es/api/v1/inmuebles';
+    $args = array(
+        'NumeroPagina' => $page,
+        'TamanoPagina' => $per_page,
+        'MarcaAguaImagenes' => false,
+        'DescripcionImagenes' => true
+    );
+    $url = add_query_arg($args, $api_url);
+
+    $headers = array(
+        'Authorization' => 'Bearer ' . trim($api_key),
+        'Accept'        => 'application/json'
+    );
+
+    // --- INICIO DE LOGS ---
+    error_log('[Mobilia Sync] URL de la petición: ' . $url);
+    error_log('[Mobilia Sync] Cabeceras enviadas: ' . print_r($headers, true));
+    // --- FIN DE LOGS ---
+
+    $res = wp_remote_get($url, array(
+        'timeout' => 30,
+        'headers' => $headers
     ));
+
+    if ( is_wp_error($res) ) {
+        // --- INICIO DE LOGS ---
+        error_log('[Mobilia Sync] WP_Error en la petición: ' . $res->get_error_message());
+        // --- FIN DE LOGS ---
+        return $res;
+    }
+
+    $code = wp_remote_retrieve_response_code($res);
+    $body = wp_remote_retrieve_body($res);
+
+    if ( $code !== 200 ) {
+        // --- INICIO DE LOGS ---
+        error_log('[Mobilia Sync] Error HTTP. Código: ' . $code);
+        error_log('[Mobilia Sync] Cuerpo de la respuesta (error): ' . $body);
+        error_log('[Mobilia Sync] Respuesta completa (headers, etc.): ' . print_r($res, true));
+        // --- FIN DE LOGS ---
+        return new WP_Error('http_error', 'HTTP ' . $code . ' - ' . $body);
+    }
+    
+    $data = json_decode($body, true);
+    if ( json_last_error() !== JSON_ERROR_NONE ) {
+        error_log('[Mobilia Sync] Error al decodificar JSON: ' . json_last_error_msg());
+        return new WP_Error('json_error', 'Error parseando JSON: ' . json_last_error_msg());
+    }
+
+    error_log('[Mobilia Sync] Petición exitosa. ' . count($data['elementos'] ?? []) . ' elementos recibidos. Total en API: ' . ($data['totalElementos'] ?? 0));
+    return $data;
+}
+
+
+// El resto del archivo (rep_mobilia_map_and_save, rep_mobilia_process_batch) permanece igual que en la versión anterior.
+// Guardar un inmueble a partir de los datos de la API
+function rep_mobilia_map_and_save($property_data){
+    $id = (string)$property_data['idInmueble'];
+    $ref = (string)$property_data['referencia'];
+    
+    $tit = !empty($property_data['tituloWeb']['txtTituloWeb']) ? $property_data['tituloWeb']['txtTituloWeb'] : '';
+    if ( empty($tit) ) {
+        $type = $property_data['tipoInmueble']['tipoInmueble'] ?? '';
+        $city = $property_data['poblacion'] ?? '';
+        $parts = array_filter([$type, 'en', $city, 'Ref ' . $ref]);
+        $tit = implode(' ', $parts);
+    }
+
+    $desc = !empty($property_data['descripcionWeb']['txtDescripcionWeb']) ? $property_data['descripcionWeb']['txtDescripcionWeb'] : '';
+
+    $existing = get_posts(array(
+        'post_type' => 'property',
+        'meta_key' => 'external_id',
+        'meta_value' => $id,
+        'posts_per_page' => 1,
+        'post_status' => array('publish', 'draft', 'trash')
+    ));
+
     $postarr = array(
-        'post_title'   => wp_strip_all_tags($tit),
+        'post_title' => wp_strip_all_tags($tit),
         'post_content' => wp_kses_post($desc),
-        'post_status'  => 'publish',
-        'post_type'    => 'property'
+        'post_status' => 'publish',
+        'post_type' => 'property'
     );
-    $post_id = $existing ? wp_update_post(array_merge($postarr,array('ID'=>$existing[0]->ID)), true)
-                         : wp_insert_post($postarr, true);
-    if ( is_wp_error($post_id) ) return $post_id;
 
-    // Operaciones y precios
-    $pv=$pa=$pt=0; $ops=array();
-    if ( isset($node->Operaciones) ){
-        foreach($node->Operaciones->Operacion as $op){
-            $tipo=strtolower((string)$op->Tipo);
-            $val=floatval((string)$op->Precio);
-            if($tipo==='venta'){ $pv=$val; $ops[]='venta'; }
-            elseif($tipo==='alquiler'){ $pa=$val; $ops[]='alquiler'; }
-            elseif($tipo==='traspaso'){ $pt=$val; $ops[]='traspaso'; }
-        }
+    $post_id = $existing ? wp_update_post(array_merge($postarr, array('ID' => $existing[0]->ID)), true) : wp_insert_post($postarr, true);
+
+    if ( is_wp_error($post_id) ) {
+        return $post_id;
     }
+
+    update_post_meta($post_id, 'external_source', 'mobilia_api');
+    update_post_meta($post_id, 'external_id', $id);
+    update_post_meta($post_id, 'referencia', $ref);
+
+    $ops = array();
+    $pv = $pa = $pt = 0;
+    if ($property_data['venta']) { $ops[] = 'venta'; $pv = floatval($property_data['precioVenta']); }
+    if ($property_data['alquiler']) { $ops[] = 'alquiler'; $pa = floatval($property_data['precioAlquiler']); }
+    if ($property_data['traspaso']) { $ops[] = 'traspaso'; $pt = floatval($property_data['precioTraspaso']); }
+    
     $precio = $pv ?: ($pa ?: $pt);
-    update_post_meta($post_id,'precio',$precio);
-    update_post_meta($post_id,'precio_venta',$pv);
-    update_post_meta($post_id,'precio_alquiler',$pa);
-    update_post_meta($post_id,'precio_traspaso',$pt);
+    update_post_meta($post_id, 'precio', $precio);
+    update_post_meta($post_id, 'precio_venta', $pv);
+    update_post_meta($post_id, 'precio_alquiler', $pa);
+    update_post_meta($post_id, 'precio_traspaso', $pt);
+    if (!empty($ops)) wp_set_object_terms($post_id, $ops, 'property_operation');
+    
+    if (!empty($property_data['poblacion'])) wp_set_object_terms($post_id, $property_data['poblacion'], 'property_city');
+    if (!empty($property_data['provincia'])) wp_set_object_terms($post_id, $property_data['provincia'], 'property_province');
+    if (!empty($property_data['nombreZona'])) wp_set_object_terms($post_id, $property_data['nombreZona'], 'property_zone');
+    if (!empty($property_data['tipoInmueble']['tipoInmueble'])) wp_set_object_terms($post_id, $property_data['tipoInmueble']['tipoInmueble'], 'property_type');
 
-    // Campos básicos
-    update_post_meta($post_id,'external_source','mobilia');
-    update_post_meta($post_id,'external_id',$id);
-    update_post_meta($post_id,'referencia',$ref);
-    if($lat!=='') update_post_meta($post_id,'lat',floatval($lat));
-    if($lng!=='') update_post_meta($post_id,'lng',floatval($lng));
+    if (!empty($property_data['latitud'])) update_post_meta($post_id, 'lat', floatval(str_replace(',', '.', $property_data['latitud'])));
+    if (!empty($property_data['longitud'])) update_post_meta($post_id, 'lng', floatval(str_replace(',', '.', $property_data['longitud'])));
 
-    if($pob)  wp_set_object_terms($post_id,$pob,'property_city');
-    if($prov) wp_set_object_terms($post_id,$prov,'property_province');
-    if($grp)  wp_set_object_terms($post_id,$grp,'property_type');
-    if($zona) wp_set_object_terms($post_id,$zona,'property_zone');
-    if(!empty($ops)) wp_set_object_terms($post_id,$ops,'property_operation');
-
-    // Eficiencia energética
-    $eraw = '';
-    if ( isset($node->CertificadoEnergetico) ) $eraw = (string)$node->CertificadoEnergetico;
-    elseif ( isset($node->Cert_Energetica) )   $eraw = (string)$node->Cert_Energetica;
-    elseif ( isset($node->CertEnergetica) )    $eraw = (string)$node->CertEnergetica;
-    $eraw = strtoupper(trim($eraw));
-    $rating = '';
-    if ( in_array($eraw, array('A','B','C','D','E','F','G'), true ) ) {
-      $rating = $eraw;
-    } elseif ( in_array($eraw, array('EN TRÁMITE','EN TRAMITE','EN TRAMITE.','PENDIENTE','EN PROCESO'), true) ) {
-      $rating = 'EN TRAMITE';
+    $chars = $property_data['caracteristicas'] ?? [];
+    if (isset($chars['metrosConstruidos'])) update_post_meta($post_id, 'superficie_construida', intval($chars['metrosConstruidos']));
+    if (isset($chars['habitaciones'])) update_post_meta($post_id, 'habitaciones', intval($chars['habitaciones']));
+    if (isset($chars['banos'])) update_post_meta($post_id, 'banos', intval($chars['banos']) + intval($chars['aseos'] ?? 0));
+    
+    $features_map = [
+        'ascensor' => 'ascensor', 'piscinaPrivada' => 'piscina', 'terraza' => 'terraza',
+        'exterior' => 'exterior', 'soleado' => 'soleado', 'amueblado' => 'amueblado',
+        'garaje' => 'garaje', 'trastero' => 'trastero', 'calefaccion' => 'calefaccion',
+        'aireAcondicionado' => 'aire_acondicionado', 'armarios' => 'armarios_empotrados',
+        'cocinaAmueblada' => 'cocina_equipada', 'jardin' => 'jardin', 'admiteMascotas' => 'mascotas'
+    ];
+    foreach($features_map as $api_key => $meta_key) {
+        if (!empty($chars[$api_key])) {
+            update_post_meta($post_id, $meta_key, 1);
+        } else {
+            delete_post_meta($post_id, $meta_key);
+        }
     }
-    if ( $rating ) update_post_meta($post_id, 'energy_rating', $rating);
 
-    // Características desde Mobilia (Extras/Extra)
-    $feat_map = array(
-      'ASCENSOR'=>'ascensor','TERRAZA'=>'terraza','PISCINA'=>'piscina','EXTERIOR'=>'exterior',
-      'SOLEADO'=>'soleado','AMUEBLADO'=>'amueblado','GARAJE'=>'garaje','TRASTERO'=>'trastero',
-      'BALCÓN'=>'balcon','BALCON'=>'balcon','CALEFACCIÓN'=>'calefaccion','CALEFACCION'=>'calefaccion',
-      'AIRE ACONDICIONADO'=>'aire_acondicionado','ARMARIOS EMPOTRADOS'=>'armarios_empotrados',
-      'COCINA EQUIPADA'=>'cocina_equipada','JARDÍN'=>'jardin','JARDIN'=>'jardin',
-      'MASCOTAS'=>'mascotas','ACCESIBLE'=>'accesible','VISTAS'=>'vistas','ALARMA'=>'alarma',
-      'PORTERO'=>'portero','ZONA COMUNITARIA'=>'zona_comunitaria',
-      // Etiquetas comerciales detectadas a veces como extra
-      'NOVEDAD'=>'__LABEL:novedad','EXCLUSIVA'=>'__LABEL:en_exclusiva','RESERVADO'=>'__LABEL:reservado',
-      'OPORTUNIDAD'=>'__LABEL:oportunidad','URGE'=>'__LABEL:urge','REBAJADO'=>'__LABEL:rebajado',
-      'PRODUCTO ESTRELLA'=>'__LABEL:producto_estrella'
-    );
-    $label_set = '';
-    if ( isset($node->Extras->Extra) ){
-        foreach($node->Extras->Extra as $ex){
-            $label = strtoupper( trim( (string)$ex ) );
-            if ( isset($feat_map[$label]) ){
-                if ( strpos($feat_map[$label],'__LABEL:') === 0 ){
-                    $label_set = substr($feat_map[$label], 8);
-                } else {
-                    update_post_meta($post_id, $feat_map[$label], 1);
+    if (!empty($chars['consumo'])) update_post_meta($post_id, 'energy_consumption', floatval($chars['consumo']));
+    if (!empty($chars['emisiones'])) update_post_meta($post_id, 'energy_emissions', floatval($chars['emisiones']));
+    if (!empty($chars['idCalificacionEnergetica'])) {
+        // Aquí necesitarías una función que traduzca el ID a la letra.
+    }
+    
+    if (!empty($property_data['fotos']) && is_array($property_data['fotos'])) {
+        $gallery_ids = [];
+        $has_featured = has_post_thumbnail($post_id);
+
+        usort($property_data['fotos'], function($a, $b) {
+            return ($a['orden'] ?? 99) <=> ($b['orden'] ?? 99);
+        });
+
+        foreach ($property_data['fotos'] as $foto) {
+            $url = $foto['url'] ?? null;
+            if (!$url) continue;
+
+            $attachment_id = attachment_url_to_postid(esc_url_raw($url));
+            if (!$attachment_id) {
+                $desc = $foto['descripcion'] ?? $tit;
+                $attachment_id = rep_sideload_image_get_id($url, $post_id, $desc);
+            }
+
+            if (!is_wp_error($attachment_id)) {
+                $gallery_ids[] = $attachment_id;
+                if (!$has_featured || ($foto['destacada'] ?? false)) {
+                    set_post_thumbnail($post_id, $attachment_id);
+                    $has_featured = true;
                 }
             }
         }
-    }
-    if ($label_set) update_post_meta($post_id,'label',$label_set);
-
-        // Etiqueta desde Mobilia (si existiese)
-    // Intentamos leer nodos habituales: <Etiqueta>, <Tag>, <EstadoComercial>
-    $label_raw = '';
-    if ( isset($node->Etiqueta) ) $label_raw = (string)$node->Etiqueta;
-    elseif( isset($node->Tag) ) $label_raw = (string)$node->Tag;
-    elseif( isset($node->EstadoComercial) ) $label_raw = (string)$node->EstadoComercial;
-
-    $label_raw = strtolower( sanitize_title($label_raw) );
-    $allowed = array('urge','oportunidad','rebajado','ideal-inversores','producto-estrella','alquilado','vendido','reservado','origen-bancario','novedad','en-exclusiva','estudiantes','precio-negociable');
-    if ( in_array($label_raw,$allowed,true) ){
-        update_post_meta($post_id,'label_tag',$label_raw);
-    }
-
-    // Fotos (importar todas; la primera como destacada)
-    if ( isset($node->Fotos->Foto) ) {
-        $max_photos = 20;
-        $ids = array();
-        $i = 0;
-
-        $existing_ids = (array) get_post_meta($post_id, 'gallery_ids', true);
-        $existing_ids = array_filter(array_map('intval', $existing_ids));
-        if ($existing_ids) $ids = $existing_ids;
-
-        foreach ( $node->Fotos->Foto as $foto ) {
-            if ( $i >= $max_photos ) break;
-            $url = (string)($foto->Url ?: $foto);
-            if ( ! $url ) { $i++; continue; }
-
-            // Evitar duplicados por meta _rep_source_url
-            $found = false;
-            if ( $ids ) {
-                foreach ( $ids as $aid ) {
-                    $src = get_post_meta($aid, '_rep_source_url', true);
-                    if ( $src === $url ) { $found = true; break; }
-                }
-            }
-            if ( $found ) { $i++; continue; }
-
-            $aid = rep_sideload_image_get_id( $url, $post_id, $tit );
-            if ( ! is_wp_error($aid) ) {
-                update_post_meta($aid, '_rep_source_url', $url);
-                $ids[] = $aid;
-                if ( ! has_post_thumbnail($post_id) ) {
-                    set_post_thumbnail($post_id, $aid);
-                }
-            }
-            $i++;
-        }
-
-        if ( $ids ) {
-            update_post_meta( $post_id, 'gallery_ids', array_values( array_unique($ids) ) );
+        if (!empty($gallery_ids)) {
+            update_post_meta($post_id, 'gallery_ids', $gallery_ids);
         }
     }
 
     return $post_id;
 }
 
+
 // Procesamiento por lotes
 function rep_mobilia_process_batch(){
-    $xml_str = rep_mobilia_fetch_xml();
-    if ( is_wp_error($xml_str) ){
-        update_option('rep_mobilia_last_status', array('error'=>$xml_str->get_error_message()));
+    $batch = get_option('rep_mobilia_batch', array('page'=>1,'done'=>0,'total'=>0, 'finished' => false));
+    if ($batch['finished']) return;
+
+    $page = intval($batch['page']);
+    $per_page = intval(rep_get_setting('mobilia_batch_size', 20));
+
+    $data = rep_mobilia_fetch_properties_from_api($page, $per_page);
+
+    if ( is_wp_error($data) ){
+        update_option('rep_mobilia_last_status', array('error'=>$data->get_error_message()));
         return;
     }
-    $xml = rep_mobilia_parse_xml($xml_str);
-    if ( is_wp_error($xml) ){
-        update_option('rep_mobilia_last_status', array('error'=>$xml->get_error_message()));
-        return;
+
+    $items = $data['elementos'] ?? [];
+    $total = $data['totalElementos'] ?? 0;
+    
+    $imported = 0; $errors = [];
+    if (!empty($items)) {
+        foreach($items as $property) {
+            $res = rep_mobilia_map_and_save($property);
+            if (is_wp_error($res)) {
+                $errors[] = $res->get_error_message();
+            } else {
+                $imported++;
+            }
+        }
     }
 
-    $items = $xml->xpath('/Inmuebles/Inmueble');
-    $total = is_array($items)? count($items) : 0;
-    $batch = get_option('rep_mobilia_batch', array('offset'=>0,'done'=>0,'total'=>$total));
-    if ( empty($batch['total']) ) $batch['total'] = $total;
+    $new_done_count = $batch['done'] + $imported;
+    $next_page = $page + 1;
+    $is_finished = ($new_done_count >= $total) || empty($items);
 
-    $offset = intval($batch['offset']);
-    $limit  = intval(rep_get_setting('mobilia_batch_size',20));
-    $end    = min($offset + $limit, $total);
+    $batch_update = array(
+        'page' => $next_page,
+        'done' => $new_done_count,
+        'total' => $total,
+        'finished' => $is_finished,
+    );
+    update_option('rep_mobilia_batch', $batch_update, false);
 
-    $imported = 0; $errors=array();
-    for($i=$offset; $i<$end; $i++){
-        $res = rep_mobilia_map_and_save($items[$i]);
-        if ( is_wp_error($res) ) $errors[] = $res->get_error_message(); else $imported++;
-    }
-
-    $batch = array('offset'=>$end,'done'=>$end,'total'=>$total);
-    update_option('rep_mobilia_batch',$batch,false);
-
-    $status = array('msg'=>"Lote $offset-$end/$total",'imported'=>$imported);
+    $status = array('msg' => "Lote página $page procesado", 'imported' => $imported, 'total_api' => $total);
     if ($errors) $status['errors'] = $errors;
-    update_option('rep_mobilia_last_status',$status,false);
+    update_option('rep_mobilia_last_status', $status, false);
 
-    if ( $end < $total && ! wp_next_scheduled('rep_mobilia_continue_batch') ){
-        wp_schedule_single_event(time()+15,'rep_mobilia_continue_batch');
+    if ( ! $is_finished && ! wp_next_scheduled('rep_mobilia_continue_batch') ){
+        wp_schedule_single_event(time() + 15, 'rep_mobilia_continue_batch');
     }
 }
 
-add_action('rep_mobilia_run_sync','rep_mobilia_process_batch');
-add_action('rep_mobilia_continue_batch','rep_mobilia_process_batch');
+
+add_action('rep_mobilia_run_sync', 'rep_mobilia_process_batch');
+add_action('rep_mobilia_continue_batch', 'rep_mobilia_process_batch');
