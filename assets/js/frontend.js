@@ -117,3 +117,58 @@
     });
 })();
 
+// ========================================================================
+// FILTROS DINÁMICOS: ZONAS POR CIUDAD
+// ========================================================================
+(function() {
+  document.addEventListener('DOMContentLoaded', function() {
+      const filterForm = document.querySelector('.rep-filters[data-zones]');
+      if (!filterForm) return;
+
+      const citySelect = filterForm.querySelector('#rep-filter-city');
+      const zoneSelect = filterForm.querySelector('#rep-filter-zone');
+      let zonesByCity = {};
+
+      try {
+          zonesByCity = JSON.parse(filterForm.getAttribute('data-zones'));
+      } catch (e) {
+          console.error('Error parsing zones data:', e);
+          return;
+      }
+
+      if (!citySelect || !zoneSelect) return;
+
+      // Función para actualizar las zonas
+      function updateZones() {
+          const selectedCitySlug = citySelect.value;
+          const currentSelectedZone = zoneSelect.value; // Guardamos la zona seleccionada ANTES de limpiar
+
+          // Limpiar opciones de zona actuales
+          zoneSelect.innerHTML = '<option value="">Zona</option>';
+
+          // Añadir nuevas opciones si hay ciudad seleccionada y zonas para ella
+          if (selectedCitySlug && zonesByCity[selectedCitySlug]) {
+              zonesByCity[selectedCitySlug].forEach(function(zone) {
+                  const option = document.createElement('option');
+                  option.value = zone.slug;
+                  option.textContent = zone.name;
+                  zoneSelect.appendChild(option);
+              });
+              // Intentar re-seleccionar la zona que estaba seleccionada, si aún existe en la nueva lista
+              if (zoneSelect.querySelector('option[value="' + currentSelectedZone + '"]')) {
+                 zoneSelect.value = currentSelectedZone;
+              }
+
+              zoneSelect.disabled = false; // Habilitar el select de zona
+          } else {
+               zoneSelect.disabled = true; // Deshabilitar si no hay ciudad o zonas
+          }
+      }
+
+      // Escuchar cambios en el selector de ciudad
+      citySelect.addEventListener('change', updateZones);
+
+      // Ejecutar la función una vez al cargar la página para establecer el estado inicial
+      updateZones(); 
+  });
+})();

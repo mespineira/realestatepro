@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Real Estate Pro
  * Description: Gestión inmobiliaria con Mobilia Sync, galería, mapa Leaflet (OSM), eficiencia energética, formulario de contacto RGPD y simulador de hipoteca.
- * Version: 1.3.0
+ * Version: 1.3.1
  * Requires PHP: 7.3
  * Author: Manel Espiñeira
  * Text Domain: real-estate-pro
@@ -10,7 +10,7 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'REP_VERSION', '1.3.0' );
+define( 'REP_VERSION', '1.3.1' );
 define( 'REP_PATH', plugin_dir_path( __FILE__ ) );
 define( 'REP_URL', plugin_dir_url( __FILE__ ) );
 
