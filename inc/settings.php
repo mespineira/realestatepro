@@ -19,7 +19,8 @@ add_action('admin_init', function(){
             $o['privacy_url']       = esc_url_raw( isset($opts['privacy_url']) ? $opts['privacy_url'] : '' );
 
             // --- INICIO DE CAMBIOS API ---
-            $o['mobilia_api_key'] = sanitize_text_field( isset($opts['mobilia_api_key']) ? $opts['mobilia_api_key'] : '' );
+            $o['mobilia_client_id'] = sanitize_text_field( isset($opts['mobilia_client_id']) ? $opts['mobilia_client_id'] : '' );
+            $o['mobilia_client_secret'] = sanitize_text_field( isset($opts['mobilia_client_secret']) ? $opts['mobilia_client_secret'] : '' );
             // --- FIN DE CAMBIOS API ---
 
             $o['mobilia_batch_size'] = max(5, intval( isset($opts['mobilia_batch_size']) ? $opts['mobilia_batch_size'] : 20 ));
@@ -63,9 +64,13 @@ function rep_render_settings_page(){
 
         <h2>Mobilia – Sincronización</h2>
         <table class="form-table">
-          <tr><th>API Key</th><td>
-            <input type="text" class="regular-text code" name="rep_settings[mobilia_api_key]" value="<?php echo esc_attr($o['mobilia_api_key']??''); ?>"/>
-            <p class="description">Introduce tu API Key de Mobilia.</p>
+          <tr><th>Client ID</th><td>
+            <input type="text" class="regular-text code" name="rep_settings[mobilia_client_id]" value="<?php echo esc_attr($o['mobilia_client_id']??''); ?>"/>
+            <p class="description">Introduce tu Client ID de Mobilia (el que antes llamábamos API Key).</p>
+          </td></tr>
+          <tr><th>Client Secret</th><td>
+            <input type="text" class="regular-text code" name="rep_settings[mobilia_client_secret]" value="<?php echo esc_attr($o['mobilia_client_secret']??''); ?>"/>
+            <p class="description">Introduce tu "Client Secret" (la nueva clave secreta que te han proporcionado).</p>
           </td></tr>
           <tr><th>Lote</th><td>
             <input type="number" name="rep_settings[mobilia_batch_size]" value="<?php echo esc_attr($o['mobilia_batch_size']??20); ?>" min="5" max="100"/>

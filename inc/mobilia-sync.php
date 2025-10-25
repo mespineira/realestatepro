@@ -13,12 +13,13 @@ add_action('admin_menu', function(){
     );
 });
 
-// Página Mobilia con botón de sincronización manual
+// Página de administración
 function rep_mobilia_admin_page(){
     if ( isset($_POST['rep_mobilia_manual']) && check_admin_referer('rep_mobilia_manual','rep_mobilia_manual_nonce') ){
         delete_option('rep_mobilia_batch');
+        delete_transient('rep_mobilia_access_token'); // Limpiamos el token viejo al iniciar
         do_action('rep_mobilia_run_sync');
-        echo '<div class="notice notice-success is-dismissible"><p>Sincronización iniciada. Se procesará por lotes automáticamente. Revisa el archivo debug.log para ver los detalles.</p></div>';
+        echo '<div class="notice notice-success is-dismissible"><p>Sincronización iniciada. Se procesará por lotes automáticamente.</p></div>';
     }
 
     $last  = get_option('rep_mobilia_last_status', array());
@@ -37,9 +38,7 @@ function rep_mobilia_admin_page(){
     $done   = intval($batch['done']);
     $finished = $batch['finished'] ?? false;
     echo '<h2>Progreso</h2>';
-    if ($finished) {
-        echo '<p><strong>Sincronización completada.</strong></p>';
-    }
+    if ($finished) echo '<p><strong>Sincronización completada.</strong></p>';
     echo '<p><strong>Total de inmuebles en Mobilia:</strong> '.esc_html($total).' &nbsp; <strong>Procesados hasta ahora:</strong> '.esc_html($done).'</p>';
 
     echo '<h2>Último estado</h2>';
@@ -49,48 +48,101 @@ function rep_mobilia_admin_page(){
     echo '</div>';
 }
 
-// Obtener datos de la API de forma paginada
-function rep_mobilia_fetch_properties_from_api($page = 1, $per_page = 20) {
-    $api_key = rep_get_setting('mobilia_api_key', '');
-    
-    // --- INICIO DE LOGS ---
-    error_log('[Mobilia Sync] Iniciando petición a la API.');
-    if ( ! $api_key ) {
-        error_log('[Mobilia Sync] ERROR: No se encontró la API Key en los ajustes.');
-        return new WP_Error('no_api_key', 'No hay API Key de Mobilia configurada.');
+/**
+ * Obtiene un token de acceso de la API de Mobilia, lo cachea en un transient.
+ */
+function rep_mobilia_get_access_token() {
+    // 1. Revisa si ya tenemos un token válido cacheado
+    $token = get_transient('rep_mobilia_access_token');
+    if ( $token ) {
+        return $token;
     }
-    // Para ver si la clave tiene espacios o caracteres extraños
-    error_log('[Mobilia Sync] API Key obtenida (longitud ' . strlen($api_key) . '): "' . $api_key . '"');
-    // --- FIN DE LOGS ---
+    
+    // 2. Si no hay token, lo solicita
+    $client_id = rep_get_setting('mobilia_client_id', '');
+    $client_secret = rep_get_setting('mobilia_client_secret', '');
+
+    if ( ! $client_id || ! $client_secret ) {
+        return new WP_Error('no_credentials', 'Faltan Client ID o Client Secret en los ajustes.');
+    }
+    
+    $token_url = 'https://api.mobiliagestion.es/api/v1/token'; 
+    
+    $body = array(
+        'grant_type'    => 'client_credentials',
+        'client_id'     => trim($client_id),
+        'client_secret' => trim($client_secret)
+    );
+
+    $res = wp_remote_post($token_url, array(
+        'timeout' => 20,
+        'body'    => $body,
+        'headers' => array(
+            'Content-Type' => 'application/x-www-form-urlencoded',
+        )
+    ));
+
+    if ( is_wp_error($res) ) {
+        return $res;
+    }
+
+    $code = wp_remote_retrieve_response_code($res);
+    $response_body = wp_remote_retrieve_body($res);
+
+    if ( $code !== 200 ) {
+        return new WP_Error('token_http_error', 'Error HTTP ' . $code . ' al solicitar el token.');
+    }
+
+    $data = json_decode($response_body, true);
+    
+    if ( ! isset($data['access_token']) || ! isset($data['expires_in']) ) {
+        return new WP_Error('token_invalid_response', 'La respuesta del token no es válida.');
+    }
+
+    // 3. Guarda el nuevo token en la caché (transient) con un tiempo de expiración
+    $token = $data['access_token'];
+    $expires_in = intval($data['expires_in']) - 60; // Restamos 1 minuto por seguridad
+
+    set_transient('rep_mobilia_access_token', $token, $expires_in);
+
+    return $token;
+}
+
+
+/**
+ * Obtiene los inmuebles de la API usando el token de acceso.
+ */
+function rep_mobilia_fetch_properties_from_api($page = 1, $per_page = 20) {
+    // Primero, obtenemos el token de acceso
+    $access_token = rep_mobilia_get_access_token();
+    if ( is_wp_error($access_token) ) {
+        return $access_token; // Propagamos el error
+    }
 
     $api_url = 'https://api.mobiliagestion.es/api/v1/inmuebles';
+    
+    // --- INICIO DE LA CORRECCIÓN ---
     $args = array(
-        'NumeroPagina' => $page,
-        'TamanoPagina' => $per_page,
-        'MarcaAguaImagenes' => false,
-        'DescripcionImagenes' => true
+        'NumeroPagina'      => $page,
+        'TamanoPagina'      => $per_page,
+        'MarcaAguaImagenes' => 'false', // Enviar como texto
+        'DescripcionImagenes' => 'true'  // Enviar como texto
     );
+    // --- FIN DE LA CORRECCIÓN ---
+
     $url = add_query_arg($args, $api_url);
 
     $headers = array(
-        'Authorization' => 'Bearer ' . trim($api_key),
+        'Authorization' => 'Bearer ' . $access_token,
         'Accept'        => 'application/json'
     );
-
-    // --- INICIO DE LOGS ---
-    error_log('[Mobilia Sync] URL de la petición: ' . $url);
-    error_log('[Mobilia Sync] Cabeceras enviadas: ' . print_r($headers, true));
-    // --- FIN DE LOGS ---
-
+    
     $res = wp_remote_get($url, array(
         'timeout' => 30,
         'headers' => $headers
     ));
 
     if ( is_wp_error($res) ) {
-        // --- INICIO DE LOGS ---
-        error_log('[Mobilia Sync] WP_Error en la petición: ' . $res->get_error_message());
-        // --- FIN DE LOGS ---
         return $res;
     }
 
@@ -98,27 +150,21 @@ function rep_mobilia_fetch_properties_from_api($page = 1, $per_page = 20) {
     $body = wp_remote_retrieve_body($res);
 
     if ( $code !== 200 ) {
-        // --- INICIO DE LOGS ---
-        error_log('[Mobilia Sync] Error HTTP. Código: ' . $code);
-        error_log('[Mobilia Sync] Cuerpo de la respuesta (error): ' . $body);
-        error_log('[Mobilia Sync] Respuesta completa (headers, etc.): ' . print_r($res, true));
-        // --- FIN DE LOGS ---
+        if ($code === 401) {
+            delete_transient('rep_mobilia_access_token');
+        }
         return new WP_Error('http_error', 'HTTP ' . $code . ' - ' . $body);
     }
     
     $data = json_decode($body, true);
     if ( json_last_error() !== JSON_ERROR_NONE ) {
-        error_log('[Mobilia Sync] Error al decodificar JSON: ' . json_last_error_msg());
         return new WP_Error('json_error', 'Error parseando JSON: ' . json_last_error_msg());
     }
 
-    error_log('[Mobilia Sync] Petición exitosa. ' . count($data['elementos'] ?? []) . ' elementos recibidos. Total en API: ' . ($data['totalElementos'] ?? 0));
     return $data;
 }
 
-
-// El resto del archivo (rep_mobilia_map_and_save, rep_mobilia_process_batch) permanece igual que en la versión anterior.
-// Guardar un inmueble a partir de los datos de la API
+// --- El resto del archivo no necesita cambios ---
 function rep_mobilia_map_and_save($property_data){
     $id = (string)$property_data['idInmueble'];
     $ref = (string)$property_data['referencia'];
@@ -240,7 +286,6 @@ function rep_mobilia_map_and_save($property_data){
 }
 
 
-// Procesamiento por lotes
 function rep_mobilia_process_batch(){
     $batch = get_option('rep_mobilia_batch', array('page'=>1,'done'=>0,'total'=>0, 'finished' => false));
     if ($batch['finished']) return;
@@ -290,7 +335,6 @@ function rep_mobilia_process_batch(){
         wp_schedule_single_event(time() + 15, 'rep_mobilia_continue_batch');
     }
 }
-
 
 add_action('rep_mobilia_run_sync', 'rep_mobilia_process_batch');
 add_action('rep_mobilia_continue_batch', 'rep_mobilia_process_batch');
