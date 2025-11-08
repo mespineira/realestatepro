@@ -18,12 +18,16 @@ add_action('admin_init', function(){
             $o['require_featured']  = !empty($opts['require_featured']) ? '1' : '0';
             $o['privacy_url']       = esc_url_raw( isset($opts['privacy_url']) ? $opts['privacy_url'] : '' );
 
-            // --- INICIO DE CAMBIOS API ---
             $o['mobilia_client_id'] = sanitize_text_field( isset($opts['mobilia_client_id']) ? $opts['mobilia_client_id'] : '' );
             $o['mobilia_client_secret'] = sanitize_text_field( isset($opts['mobilia_client_secret']) ? $opts['mobilia_client_secret'] : '' );
-            // --- FIN DE CAMBIOS API ---
-
-            $o['mobilia_batch_size'] = max(5, intval( isset($opts['mobilia_batch_size']) ? $opts['mobilia_batch_size'] : 20 ));
+            
+            // --- INICIO CAMBIO OPTIMIZACIÓN ---
+            // Ajustamos el valor por defecto y mínimo a 5
+            $o['mobilia_batch_size'] = max(5, intval( isset($opts['mobilia_batch_size']) ? $opts['mobilia_batch_size'] : 5 ));
+             // Aseguramos que no supere el máximo de la API (100)
+            $o['mobilia_batch_size'] = min(100, $o['mobilia_batch_size']);
+            // --- FIN CAMBIO OPTIMIZACIÓN ---
+            
             return $o;
         }
     ));
@@ -66,15 +70,17 @@ function rep_render_settings_page(){
         <table class="form-table">
           <tr><th>Client ID</th><td>
             <input type="text" class="regular-text code" name="rep_settings[mobilia_client_id]" value="<?php echo esc_attr($o['mobilia_client_id']??''); ?>"/>
-            <p class="description">Introduce tu Client ID de Mobilia (el que antes llamábamos API Key).</p>
+            <p class="description">Introduce tu Client ID de Mobilia.</p>
           </td></tr>
           <tr><th>Client Secret</th><td>
-            <input type="text" class="regular-text code" name="rep_settings[mobilia_client_secret]" value="<?php echo esc_attr($o['mobilia_client_secret']??''); ?>"/>
-            <p class="description">Introduce tu "Client Secret" (la nueva clave secreta que te han proporcionado).</p>
+            <input type="password" class="regular-text code" name="rep_settings[mobilia_client_secret]" value="<?php echo esc_attr($o['mobilia_client_secret']??''); ?>"/>
+            <p class="description">Introduce tu Client Secret.</p>
           </td></tr>
-          <tr><th>Lote</th><td>
-            <input type="number" name="rep_settings[mobilia_batch_size]" value="<?php echo esc_attr($o['mobilia_batch_size']??20); ?>" min="5" max="100"/>
-            <p class="description">Nº de inmuebles a procesar por página (máximo 100).</p>
+          <tr><th>Lote de Sincronización</th><td>
+             {/* --- INICIO CAMBIO OPTIMIZACIÓN --- */}
+            <input type="number" name="rep_settings[mobilia_batch_size]" value="<?php echo esc_attr($o['mobilia_batch_size']?? 5); ?>" min="5" max="100"/>
+            <p class="description">Nº de inmuebles a procesar en cada paso del proceso en segundo plano (mínimo 5, máximo 100).</p>
+            {/* --- FIN CAMBIO OPTIMIZACIÓN --- */}
           </td></tr>
         </table>
         <?php submit_button(); ?>
