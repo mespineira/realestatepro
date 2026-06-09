@@ -20,7 +20,7 @@ add_action('admin_menu', function(){
 
 function rep_mobilia_admin_page(){
     // Iniciar manualmente
-    if ( isset($_POST['rep_mobilia_manual_start']) && check_admin_referer('rep_mobilia_manual_start_nonce') ){
+    if ( isset($_POST['rep_mobilia_manual_start']) && isset($_POST['_wpnonce']) && wp_verify_nonce($_POST['_wpnonce'], 'rep_mobilia_manual_action_nonce') ){
         // Comprobar si ya hay una sincronización en curso
         $sync_status = get_option('rep_mobilia_sync_status', ['status' => 'idle']);
         if ($sync_status['status'] === 'idle' || $sync_status['status'] === 'completed' || $sync_status['status'] === 'error') {
@@ -31,11 +31,26 @@ function rep_mobilia_admin_page(){
         }
     }
     
-    // Forzar cancelación (por si se queda atascado)
-     if ( isset($_POST['rep_mobilia_manual_cancel']) && check_admin_referer('rep_mobilia_manual_cancel_nonce') ){
+    // Forzar cancelación
+    if ( isset($_POST['rep_mobilia_manual_cancel']) && isset($_POST['_wpnonce']) && wp_verify_nonce($_POST['_wpnonce'], 'rep_mobilia_manual_action_nonce') ){
          rep_mobilia_cancel_sync();
-         echo '<div class="notice notice-warning is-dismissible"><p>'.__('Intento de cancelación de la sincronización enviado.', 'real-estate-pro').'</p></div>';
-     }
+         echo '<div class="notice notice-warning is-dismissible"><p>'.__('Sincronización cancelada manualmente.', 'real-estate-pro').'</p></div>';
+    }
+
+    // Procesar lote manualmente
+    if ( isset($_POST['rep_mobilia_manual_batch']) && isset($_POST['_wpnonce']) && wp_verify_nonce($_POST['_wpnonce'], 'rep_mobilia_manual_action_nonce') ) {
+         rep_mobilia_process_batch_job();
+         echo '<div class="notice notice-success is-dismissible"><p>'.__('Lote procesado manualmente.', 'real-estate-pro').'</p></div>';
+    }
+
+    // Resetear completamente
+    if ( isset($_POST['rep_mobilia_hard_reset']) && isset($_POST['_wpnonce']) && wp_verify_nonce($_POST['_wpnonce'], 'rep_mobilia_manual_action_nonce') ) {
+         delete_option('rep_mobilia_sync_status');
+         delete_option('rep_mobilia_last_run_log');
+         delete_option('rep_mobilia_batch');
+         rep_mobilia_cancel_sync();
+         echo '<div class="notice notice-success is-dismissible"><p>'.__('Estado reseteado completamente.', 'real-estate-pro').'</p></div>';
+    }
 
     $sync_status = get_option('rep_mobilia_sync_status', ['status' => 'idle']);
     $last_run_log = get_option('rep_mobilia_last_run_log', []);
@@ -45,22 +60,27 @@ function rep_mobilia_admin_page(){
 
     // Formulario para Iniciar/Cancelar
     echo '<form method="post" style="margin-bottom: 20px;">';
+    wp_nonce_field('rep_mobilia_manual_action_nonce');
     if ($is_running) {
-        wp_nonce_field('rep_mobilia_manual_cancel_nonce');
-        echo '<input type="hidden" name="rep_mobilia_manual_cancel" value="1" />';
-        submit_button(__('Cancelar Sincronización', 'real-estate-pro'), 'delete', 'submit', false, ['disabled' => false]); // Siempre permitir cancelar
-         echo '<p style="color:orange; font-weight:bold;">'.__('Sincronización en curso...', 'real-estate-pro').'</p>';
+        echo '<div style="display:flex; gap:10px; align-items:center; margin-top:20px;">';
+        echo '<input type="submit" name="rep_mobilia_manual_cancel" value="'.__('Cancelar Sincronización', 'real-estate-pro').'" class="button button-secondary" style="color:#b32d2e; border-color:#b32d2e;" />';
+        echo '<input type="submit" name="rep_mobilia_manual_batch" value="'.__('Forzar Lote Manualmente', 'real-estate-pro').'" class="button button-primary" />';
+        echo '<input type="submit" name="rep_mobilia_hard_reset" value="'.__('Reset Emergencia', 'real-estate-pro').'" class="button button-secondary" />';
+        echo '</div>';
+        echo '<p style="color:orange; font-weight:bold; margin-top: 15px;">'.__('Sincronización en curso...', 'real-estate-pro').'</p>';
     } else {
-        wp_nonce_field('rep_mobilia_manual_start_nonce');
-        echo '<input type="hidden" name="rep_mobilia_manual_start" value="1" />';
-        submit_button(__('Iniciar Sincronización Ahora', 'real-estate-pro'), 'primary', 'submit', false);
+        echo '<div style="display:flex; gap:10px; align-items:center; margin-top:20px;">';
+        echo '<input type="submit" name="rep_mobilia_manual_start" value="'.__('Iniciar Sincronización Ahora', 'real-estate-pro').'" class="button button-primary" />';
+        echo '<input type="submit" name="rep_mobilia_hard_reset" value="'.__('Reset Emergencia', 'real-estate-pro').'" class="button button-secondary" />';
+        echo '</div>';
+        
         if ($sync_status['status'] === 'completed') {
-             echo '<p style="color:green;">'.__('Última sincronización completada.', 'real-estate-pro').'</p>';
+             echo '<p style="color:green; margin-top: 15px;">'.__('Última sincronización completada.', 'real-estate-pro').'</p>';
         } elseif ($sync_status['status'] === 'error') {
-            echo '<p style="color:red;">'.__('La última sincronización terminó con error.', 'real-estate-pro').'</p>';
+            echo '<p style="color:red; margin-top: 15px;">'.__('La última sincronización terminó con error.', 'real-estate-pro').'</p>';
         }
     }
-     echo ' <a class="button" href="'. esc_url( admin_url('edit.php?post_type=property&page=rep-mobilia') ) .'">'.__('Actualizar Estado', 'real-estate-pro').'</a>';
+     echo ' <div style="margin-top:20px;"><a class="button button-secondary" href="'. esc_url( admin_url('edit.php?post_type=property&page=rep-mobilia') ) .'">'.__('Refrescar Estado / Log', 'real-estate-pro').'</a></div>';
     echo '</form>';
     
     // Mostrar estado detallado
@@ -136,26 +156,35 @@ function rep_mobilia_start_sync() {
     // 3. Inicializar la lista de IDs procesados en esta sincronización
     update_option('rep_mobilia_processed_ids', []);
 
-    // 4. Programar la primera tarea de procesamiento (inmediatamente)
+    // 4. Programar la primera tarea de procesamiento (inmediatamente, sincrónico)
     update_option('rep_mobilia_sync_status', [
         'status' => 'processing_batch', 
         'current_page' => 1, 
         'total_items' => 0, // Aún no lo sabemos
         'last_update' => time()
     ]);
-    wp_schedule_single_event(time(), REP_CRON_HOOK_BATCH);
     
-    error_log('[Mobilia Sync] Proceso iniciado. '.count($wp_property_ids).' inmuebles locales encontrados. Programada primera tarea.');
+    error_log('[Mobilia Sync] Proceso iniciado. '.count($wp_property_ids).' inmuebles locales encontrados. Ejecutando primer lote forzosamente.');
+    
+    // Forzamos la ejecución del primer lote en primer plano para ver errores inmediatamente
+    rep_mobilia_process_batch_job();
 }
 
 /**
  * Tarea Cron: Procesa un lote (página) de inmuebles desde la API.
  */
 function rep_mobilia_process_batch_job() {
+    @set_time_limit(600); // Dar más tiempo a la ejecución por la descarga de imágenes.
     $sync_status = get_option('rep_mobilia_sync_status');
+    
+    if (!$sync_status || !isset($sync_status['status']) || !in_array($sync_status['status'], ['fetching_wp_ids', 'processing_batch', 'error'])) {
+        error_log("[Mobilia Sync] Abortado: estado actual es inválido para procesar el lote.");
+        return;
+    }
+
     $current_page = $sync_status['current_page'] ?? 1;
     $per_page = intval(rep_get_setting('mobilia_batch_size', 5));
-    $run_log = ['page' => $current_page, 'processed' => 0, 'errors' => []];
+    $run_log = ['page' => $current_page, 'processed' => 0, 'errors' => [], 'images_log' => []];
 
     error_log("[Mobilia Sync] Ejecutando tarea: procesar página $current_page");
 
@@ -179,7 +208,7 @@ function rep_mobilia_process_batch_job() {
             $mobilia_id = (string)($property_data['idInmueble'] ?? null);
             if (!$mobilia_id) continue;
 
-            $res = rep_mobilia_map_and_save($property_data); // Esta función añade o actualiza el post
+            $res = rep_mobilia_map_and_save($property_data, $run_log); // Esta función añade o actualiza el post
             
             if (is_wp_error($res)) {
                  $run_log['errors'][] = "Mobilia ID $mobilia_id: " . $res->get_error_message();
@@ -200,6 +229,12 @@ function rep_mobilia_process_batch_job() {
 
         // Si la API devuelve menos elementos que el tamaño de página, asumimos que es la última página
         $is_last_page = count($items) < $per_page || $current_page >= $approx_total_pages; 
+
+        $check_status = get_option('rep_mobilia_sync_status');
+        if ($check_status && $check_status['status'] === 'idle') {
+             error_log("[Mobilia Sync] Cancelación detectada al finalizar el lote. Abortando...");
+             return;
+        }
 
         if ($is_last_page) {
             // Todos los lotes procesados, programar limpieza
@@ -223,6 +258,11 @@ function rep_mobilia_process_batch_job() {
         }
 
     } else {
+        $check_status = get_option('rep_mobilia_sync_status');
+        if ($check_status && $check_status['status'] === 'idle') {
+             return;
+        }
+
         // No hay más items, pasar a limpieza
         update_option('rep_mobilia_sync_status', [
              'status' => 'cleaning_up', 
@@ -242,6 +282,12 @@ function rep_mobilia_process_batch_job() {
 function rep_mobilia_cleanup_job() {
     error_log("[Mobilia Sync] Ejecutando tarea: limpieza.");
     
+    $sync_status = get_option('rep_mobilia_sync_status');
+    if (!$sync_status || !isset($sync_status['status']) || !in_array($sync_status['status'], ['cleaning_up'])) {
+         error_log("[Mobilia Sync] Abortado limpieza: estado no es válido.");
+         return;
+    }
+
     $wp_ids_before_sync = get_option('rep_mobilia_wp_ids_before_sync', []);
     $processed_mobilia_ids = get_option('rep_mobilia_processed_ids', []); // IDs de Mobilia que SÍ existen
     $run_log = ['deleted_count' => 0, 'errors' => []];
@@ -288,10 +334,9 @@ function rep_mobilia_cancel_sync() {
     wp_clear_scheduled_hook(REP_CRON_HOOK_BATCH);
     wp_clear_scheduled_hook(REP_CRON_HOOK_CLEANUP);
     update_option('rep_mobilia_sync_status', ['status' => 'idle', 'message' => 'Sincronización cancelada manualmente.', 'last_update' => time()]);
-    // Considera si quieres borrar las opciones temporales aquí también
-    // delete_option('rep_mobilia_processed_ids');
-    // delete_option('rep_mobilia_wp_ids_before_sync');
-    error_log("[Mobilia Sync] Intento de cancelación manual.");
+    delete_option('rep_mobilia_processed_ids');
+    delete_option('rep_mobilia_wp_ids_before_sync');
+    error_log("[Mobilia Sync] Sincronización cancelada manualmente.");
 }
 
 // --- Registro y desregistro de tareas Cron ---
@@ -435,7 +480,7 @@ function rep_mobilia_fetch_properties_from_api($page = 1, $per_page = 20) {
 }
 
 
-function rep_mobilia_map_and_save($property_data){
+function rep_mobilia_map_and_save($property_data, &$run_log = null){
     $id = (string)$property_data['idInmueble'];
     $ref = (string)$property_data['referencia'];
     
@@ -447,7 +492,9 @@ function rep_mobilia_map_and_save($property_data){
         $tit = implode(' ', $parts);
     }
 
-    $desc = !empty($property_data['descripcionWeb']['txtDescripcionWeb']) ? $property_data['descripcionWeb']['txtDescripcionWeb'] : '';
+    $desc = !empty($property_data['descripcionAmpliada']['txtDescripcionAmpliada']) 
+        ? $property_data['descripcionAmpliada']['txtDescripcionAmpliada'] 
+        : (!empty($property_data['descripcionWeb']['txtDescripcionWeb']) ? $property_data['descripcionWeb']['txtDescripcionWeb'] : '');
 
     $existing_posts = get_posts(array(
         'post_type' => 'property',
@@ -534,13 +581,46 @@ function rep_mobilia_map_and_save($property_data){
     }
 
 
-    if (!empty($property_data['latitud'])) update_post_meta($post_id, 'lat', floatval(str_replace(',', '.', $property_data['latitud']))); else delete_post_meta($post_id, 'lat');
-    if (!empty($property_data['longitud'])) update_post_meta($post_id, 'lng', floatval(str_replace(',', '.', $property_data['longitud']))); else delete_post_meta($post_id, 'lng');
+    $lat = !empty($property_data['latitudZona']) ? $property_data['latitudZona'] : ($property_data['latitud'] ?? '');
+    $lng = !empty($property_data['longitudZona']) ? $property_data['longitudZona'] : ($property_data['longitud'] ?? '');
+    
+    if (!empty($lat)) update_post_meta($post_id, 'lat', floatval(str_replace(',', '.', $lat))); else delete_post_meta($post_id, 'lat');
+    if (!empty($lng)) update_post_meta($post_id, 'lng', floatval(str_replace(',', '.', $lng))); else delete_post_meta($post_id, 'lng');
 
     $chars = $property_data['caracteristicas'] ?? [];
     if (isset($chars['metrosConstruidos'])) update_post_meta($post_id, 'superficie_construida', intval($chars['metrosConstruidos'])); else delete_post_meta($post_id, 'superficie_construida');
     if (isset($chars['habitaciones'])) update_post_meta($post_id, 'habitaciones', intval($chars['habitaciones'])); else delete_post_meta($post_id, 'habitaciones');
     if (isset($chars['banos'])) update_post_meta($post_id, 'banos', intval($chars['banos']) + intval($chars['aseos'] ?? 0)); else delete_post_meta($post_id, 'banos');
+    
+    if (!empty($property_data['anoConstruccion'])) {
+        update_post_meta($post_id, 'anyo_construccion', intval($property_data['anoConstruccion']));
+    } else {
+        delete_post_meta($post_id, 'anyo_construccion');
+    }
+
+    $anoReforma = !empty($property_data['anoReforma']) ? $property_data['anoReforma'] : 
+                  (isset($chars['anoReforma']) ? $chars['anoReforma'] : 
+                  (!empty($property_data['añoReforma']) ? $property_data['añoReforma'] : null));
+
+    if (!empty($anoReforma)) {
+        update_post_meta($post_id, 'anyo_reforma', intval($anoReforma));
+    } else {
+        delete_post_meta($post_id, 'anyo_reforma');
+    }
+
+    $estado_nuevo = '';
+    if (!empty($property_data['conservacionInmueble']['conservacion'])) {
+        $estado_nuevo = $property_data['conservacionInmueble']['conservacion'];
+    } elseif (!empty($property_data['estado']) && in_array(strtolower($property_data['estado']), ['obra nueva', 'a reformar', 'buen estado', 'reformado', 'casi nuevo'])) {
+        $estado_nuevo = $property_data['estado'];
+    }
+    
+    if (!empty($estado_nuevo)) {
+        update_post_meta($post_id, 'estado_conservacion', sanitize_text_field($estado_nuevo));
+    } else {
+        delete_post_meta($post_id, 'estado_conservacion');
+    }
+
     
     // Características booleanas: obtener todas las posibles del sistema y marcarlas/desmarcarlas
      if (!function_exists('rep_get_feature_groups')) require_once REP_PATH . 'inc/utils.php';
@@ -583,6 +663,13 @@ function rep_mobilia_map_and_save($property_data){
                 break; // Marcar y salir si encontramos una coincidencia
              }
         }
+        
+        // Comprobación para calefacción especial desde la raíz u otras anidadas
+        if ($meta_key === 'calefaccion' && !empty($property_data['calefaccion']['tipoCalefaccion'])) {
+             update_post_meta($post_id, 'calefaccion', 1);
+             $found_in_api = true;
+        }
+
         // Si no se encontró ninguna clave API mapeada a esta clave meta, la borramos
         if (!$found_in_api) {
             delete_post_meta($post_id, $meta_key);
@@ -614,6 +701,12 @@ function rep_mobilia_map_and_save($property_data){
     $current_gallery_ids = array_filter(array_map('intval', $current_gallery_ids)); // Asegurar array de ints
     
     $api_photos = $property_data['fotos'] ?? [];
+    if (empty($api_photos)) {
+         if ($run_log !== null) $run_log['images_log'][] = "Mobilia ID $id: sin fotos.";
+    } else {
+         if ($run_log !== null) $run_log['images_log'][] = "Mobilia ID $id: procesando " . count($api_photos) . " fotos.";
+    }
+    
     $new_gallery_ids = [];
     $featured_image_id = null;
     $has_featured_from_api = false;
@@ -652,8 +745,11 @@ function rep_mobilia_map_and_save($property_data){
                 if (!is_wp_error($attachment_id)) {
                     // Guardamos la URL original para futuras comprobaciones
                     update_post_meta($attachment_id, '_rep_mobilia_photo_url', esc_url_raw($url));
+                    if ($run_log !== null) $run_log['images_log'][] = "  -> Exito: descagando $url";
                 } else {
-                     error_log("[Mobilia Sync] Error al descargar imagen $url: " . $attachment_id->get_error_message());
+                     $errmsg = $attachment_id->get_error_message();
+                     error_log("[Mobilia Sync] Error al descargar imagen $url: " . $errmsg);
+                     if ($run_log !== null) $run_log['images_log'][] = "  -> ERROR: falló descarga de $url ($errmsg)";
                      $attachment_id = null; // Asegurarse de que no se añade si hay error
                 }
              }
@@ -776,5 +872,4 @@ function rep_mobilia_process_batch(){
      update_option('rep_mobilia_last_run_log', $run_log); 
 }
 
-add_action(REP_CRON_HOOK_BATCH, 'rep_mobilia_process_batch_job');
-add_action(REP_CRON_HOOK_CLEANUP, 'rep_mobilia_cleanup_job');
+// Duplicate hooks are removed from here

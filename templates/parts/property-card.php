@@ -19,9 +19,14 @@ $raw  = get_the_excerpt() ? get_the_excerpt() : get_the_content(null,false);
 $desc = rep_excerpt_chars($raw, 170);
 ?>
 <article <?php post_class('rep-card rep-card-line'); ?>>
-    <?php if($label): ?>
-      <span class="rep-badge" data-label-slug="<?php echo esc_attr($label); ?>"><?php echo esc_html( rep_label_text($label) ); ?></span>
-    <?php endif; ?>
+    <div class="rep-badges-wrap" style="position:absolute; left:12px; top:12px; z-index:2; display:flex; gap:6px; flex-direction:column; align-items:flex-start;">
+        <?php if($label): ?>
+          <span class="rep-badge" data-label-slug="<?php echo esc_attr($label); ?>" style="position:static;"><?php echo esc_html( rep_label_text($label) ); ?></span>
+        <?php endif; ?>
+        <?php if(get_post_meta($pid, 'destacado', true) == '1'): ?>
+          <span class="rep-badge rep-badge-destacado" style="position:static; background: #ffb800; color: #fff;"><i class="fas fa-star"></i> Destacado</span>
+        <?php endif; ?>
+    </div>
 
     <div class="rep-card-slider" data-images="<?php echo esc_attr( htmlspecialchars( wp_json_encode($imgs), ENT_QUOTES, 'UTF-8') ); ?>">
       <a href="<?php the_permalink(); ?>" class="rep-cs-stage"><img src="<?php echo esc_url($imgs[0]); ?>" alt="<?php the_title_attribute(); ?>"/></a>

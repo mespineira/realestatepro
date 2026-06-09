@@ -177,14 +177,83 @@ add_shortcode('rep_list', function($atts){
     $a = shortcode_atts(array(
         'per_page'   => 12,
         'operation'  => '',
-        'pagination' => 'true'
+        'pagination' => 'true',
+        'home'       => 'false'
     ),$atts);
 
     $paged = max(1, get_query_var('paged') ? get_query_var('paged') : ( isset($_GET['pg']) ? intval($_GET['pg']) : 1 ));
-    
+    $per_page = intval($a['per_page']);
+
+    // Si es modo "home=true" y no hay parámetros GET de búsqueda (o incluso si los hay pero el home es estricto),
+    // usaremos la lógica: destacados ordenados por fecha DESC + (si faltan) aleatorios no destacados.
+    // Para simplificar, si está en home="true", aplicamos esta regla prioritaria:
+    if ( $a['home'] === 'true' ) {
+        // 1. Destacados primero
+        $q_featured = new WP_Query(array(
+            'post_type'      => 'property',
+            'posts_per_page' => $per_page,
+            'meta_query'     => array(
+                array(
+                    'key'     => 'destacado',
+                    'value'   => '1',
+                    'compare' => '='
+                )
+            ),
+            'orderby'        => 'date',
+            'order'          => 'DESC',
+            'no_found_rows'  => true
+        ));
+
+        $posts_featured = $q_featured->posts;
+        $count_featured = count($posts_featured);
+        
+        $posts_normal = array();
+        if ( $count_featured < $per_page ) {
+            // Rellenar con los que no son destacados (aleatorios)
+            $q_normal = new WP_Query(array(
+                'post_type'      => 'property',
+                'posts_per_page' => $per_page - $count_featured,
+                'meta_query'     => array(
+                    'relation' => 'OR',
+                    array(
+                        'key'     => 'destacado',
+                        'compare' => 'NOT EXISTS'
+                    ),
+                    array(
+                        'key'     => 'destacado',
+                        'value'   => '1',
+                        'compare' => '!='
+                    )
+                ),
+                'orderby'        => 'rand',
+                'no_found_rows'  => true
+            ));
+            $posts_normal = $q_normal->posts;
+        }
+
+        $all_posts = array_merge($posts_featured, $posts_normal);
+        
+        ob_start();
+        echo '<div class="rep-grid rep-grid-list">';
+        if($all_posts):
+            global $post;
+            foreach($all_posts as $post):
+                setup_postdata($post);
+                include( REP_PATH . 'templates/parts/property-card.php' );
+            endforeach; wp_reset_postdata();
+        else:
+            echo '<p>No hay inmuebles que coincidan con tu búsqueda.</p>';
+        endif;
+        echo '</div>';
+        
+        // El modo home suele no tener paginación (al ser la grid rellena de forma semirandom).
+        return ob_get_clean();
+    }
+
+    // --- FLUJO NORMAL DE rep_list ---
     $args = array(
         'post_type'      => 'property',
-        'posts_per_page' => intval($a['per_page']),
+        'posts_per_page' => $per_page,
         'paged'          => $paged
     );
 

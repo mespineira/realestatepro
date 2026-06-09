@@ -69,6 +69,7 @@ function rep_register_meta(){
         'edificable'   => array('type'=>'boolean','single'=>true),
         'pozo'         => array('type'=>'boolean','single'=>true),
         'fosa_septica' => array('type'=>'boolean','single'=>true),
+        'destacado'    => array('type'=>'boolean','single'=>true),
     );
 
     foreach( $fields as $key=>$args ){

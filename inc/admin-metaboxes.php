@@ -56,7 +56,7 @@ function rep_mb_render_details( $post ){
       .rep-grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px}
       .rep-grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:12px}
       .rep-mb-field label{display:block;font-weight:600;margin-bottom:4px}
-      .rep-mb-field input,.rep-mb-field select{width:100%}
+      .rep-mb-field input:not([type="checkbox"]),.rep-mb-field select{width:100%}
       .rep-feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
       .rep-feat-grid label{display:flex;gap:8px;align-items:center;border:1px solid #e6eaef;border-radius:8px;padding:8px;background:#fff}
       .rep-feat-group { border: 1px solid #c8d7e1; padding: 10px 15px; margin-top: 15px; border-radius: 8px; background: #f8fafc; }
@@ -82,11 +82,14 @@ function rep_mb_render_details( $post ){
     </div>
 
     <div class="rep-grid-2">
-      <div class="rep-mb-field"><label><?php _e('Referencia','real-estate-pro'); ?></label><input type="text" name="rep_mb[referencia]" value="<?php echo esc_attr($ref); ?>"/></div>
+       <div class="rep-mb-field"><label><?php _e('Referencia','real-estate-pro'); ?></label><input type="text" name="rep_mb[referencia]" value="<?php echo esc_attr($ref); ?>"/></div>
        <div class="rep-mb-field"><label><?php _e('Etiqueta','real-estate-pro'); ?></label>
         <select name="rep_mb[label_tag]">
           <?php foreach($label_opts as $k=>$v): ?><option value="<?php echo esc_attr($k); ?>" <?php selected($label,$k); ?>><?php echo esc_html($v); ?></option><?php endforeach; ?>
         </select>
+      </div>
+      <div class="rep-mb-field" style="display:flex;align-items:center;padding-top:20px;">
+        <label style="margin-bottom:0;margin-right:10px;"><input type="checkbox" name="rep_mb[destacado]" value="1" <?php checked(get_post_meta($post->ID, 'destacado', true), '1'); ?>/> <?php _e('Destacado en portada','real-estate-pro'); ?></label>
       </div>
     </div>
 
@@ -159,6 +162,13 @@ add_action('save_post_property', function($post_id){
             $val = call_user_func($fn, $in[$key]);
             update_post_meta($post_id, $key, $val);
         }
+    }
+    
+    // Save destacado explicitly because it's a checkbox:
+    if ( isset($in['destacado']) ) {
+        update_post_meta($post_id, 'destacado', 1);
+    } else {
+        delete_post_meta($post_id, 'destacado');
     }
 
     if (!function_exists('rep_get_feature_groups')) {
@@ -289,3 +299,64 @@ add_action('save_post_property', function($post_id){
     if ( isset($_POST['rep_mb']['lng']) ) update_post_meta($post_id,'lng', floatval($_POST['rep_mb']['lng']) );
 }, 12);
 
+/**
+ * Añadir estado "Destacado" al lado del título en el listado
+ */
+add_filter('display_post_states', function($states, $post){
+    if ($post->post_type === 'property') {
+        $is_featured = get_post_meta($post->ID, 'destacado', true) === '1';
+        if ($is_featured) {
+            $states['rep_featured'] = __('⭐️ Destacado', 'real-estate-pro');
+        }
+    }
+    return $states;
+}, 10, 2);
+
+/**
+ * Agregar acción rápida para "Destacar" / "Quitar destacado" en la lista de propiedades
+ */
+add_filter('post_row_actions', function($actions, $post){
+    if ($post->post_type !== 'property') return $actions;
+    
+    $is_featured = get_post_meta($post->ID, 'destacado', true) === '1';
+    $nonce = wp_create_nonce('rep_toggle_featured_' . $post->ID);
+    
+    // Generamos el link de toggle que pasará por admin-post.php
+    $url = admin_url("admin-post.php?action=rep_toggle_featured&post_id={$post->ID}&_wpnonce={$nonce}");
+    
+    if ($is_featured) {
+        $actions['rep_featured'] = '<a href="'.esc_url($url).'" style="color:#d63638;" title="Quitar de portada">'.__('Quitar destacado','real-estate-pro').'</a>';
+    } else {
+        $actions['rep_featured'] = '<a href="'.esc_url($url).'" style="color:#2271b1;" title="Mostrar en portada">'.__('Destacar','real-estate-pro').'</a>';
+    }
+    
+    return $actions;
+}, 10, 2);
+
+/**
+ * Manejar el post param de la acción rápida
+ */
+add_action('admin_post_rep_toggle_featured', function(){
+    if (!isset($_GET['post_id']) || !isset($_GET['_wpnonce'])) {
+        wp_die('Faltan parámetros.');
+    }
+    $post_id = intval($_GET['post_id']);
+    
+    if (!wp_verify_nonce($_GET['_wpnonce'], 'rep_toggle_featured_' . $post_id)) {
+        wp_die('Acceso denegado.');
+    }
+    
+    if (!current_user_can('edit_post', $post_id)) {
+        wp_die('No tienes permisos para editar esta propiedad.');
+    }
+    
+    $current = get_post_meta($post_id, 'destacado', true);
+    if ($current === '1') {
+        delete_post_meta($post_id, 'destacado');
+    } else {
+        update_post_meta($post_id, 'destacado', '1');
+    }
+    
+    wp_redirect(admin_url('edit.php?post_type=property'));
+    exit;
+});

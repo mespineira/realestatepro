@@ -21,11 +21,13 @@
 .rep-lightbox{
   position:fixed;inset:0;background:#000c;display:flex;align-items:center;justify-content:center;z-index:9999
 }
-.rep-lb-img{max-width:90vw;max-height:80vh;border-radius:8px}
+.rep-lb-wrapper{position:relative;max-width:90vw;max-height:80vh;}
+.rep-lb-img{display:block;max-width:100%;max-height:80vh;border-radius:8px;}
 .rep-lb-close,.rep-lb-prev,.rep-lb-next{
-  position:absolute;background:#00000088;color:#fff;border:none;width:42px;height:42px;border-radius:50%;cursor:pointer
+  position:absolute;background:#000000aa;color:#fff;border:none;width:42px;height:42px;border-radius:50%;cursor:pointer;font-size:28px;line-height:1;display:flex;align-items:center;justify-content:center;z-index:100;
 }
-.rep-lb-close{top:20px;right:20px}
+.rep-lb-close{top:-15px;right:-15px;width:50px;height:50px;font-size:36px;box-shadow:0 2px 10px rgba(0,0,0,0.5);}
+.rep-lb-close:hover{background:#000000cc;transform:scale(1.05);}
 .rep-lb-prev{left:20px}
 .rep-lb-next{right:20px}
 .rep-lb-thumbs{position:absolute;bottom:20px;left:0;right:0;display:flex;justify-content:center;gap:8px}
